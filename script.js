@@ -67,18 +67,46 @@ function setHairStyle(style) {
 }
 
 function setHairColor(color) {
+    // New robust implementation: update state, toggle active on matching buttons (by data-color or onclick),
+    // update both preview SVGs immediately, then refresh the rest of the preview.
     gameState.hairColor = color;
-    
-    // Update active state on color buttons for hair color
-    const hairColorGroup = document.querySelectorAll('.option-group')[1]; // Hair Color is the second option group
-    hairColorGroup.querySelectorAll('.color-btn').forEach(btn => {
-        if (btn.getAttribute('onclick').includes(color)) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
+
+    // Update active state on all color buttons (not relying on brittle option-group indexing)
+    document.querySelectorAll('.color-btn').forEach(btn => {
+        // Prefer data-color attribute if present
+        const dataColor = btn.getAttribute('data-color') || (btn.dataset && btn.dataset.color) || '';
+        if (dataColor) {
+            btn.classList.toggle('active', dataColor.toLowerCase() === color.toLowerCase());
+            return;
+        }
+
+        // Fallback: inspect onclick handler text if present
+        const onclick = btn.getAttribute('onclick') || '';
+        if (onclick.includes('setHairColor')) {
+            // crude but useful fallback: check if the color string appears in the onclick
+            btn.classList.toggle('active', onclick.indexOf(color) !== -1);
+            return;
+        }
+
+        // Otherwise make sure it's not active
+        btn.classList.remove('active');
+    });
+
+    // Ensure the hair fill updates immediately on both preview SVGs
+    ['characterSVG', 'characterLargeSVG'].forEach(svgId => {
+        const hairEl = document.querySelector(`#${svgId} #hair`);
+        if (hairEl) {
+            hairEl.setAttribute('fill', color);
+            // Keep hair shape consistent with current style
+            try {
+                updateHairStyle(hairEl);
+            } catch (e) {
+                // ignore if updateHairStyle expects a different structure
+            }
         }
     });
-    
+
+    // Finally refresh the rest of the preview (keeps other pieces in sync)
     updateCharacterPreview();
 }
 
