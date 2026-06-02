@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animal Life - Meet Woofy!</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="screen">
+            <div class="welcome-content">
+                <h1>🐕 Animal Life</h1>
+                <h2>Meet Woofy and Have Your Own Town!</h2>
+                <div style="font-size: 120px; margin: 30px 0;">🐕</div>
+                <p>Welcome to an amazing adventure where you'll create your own character and explore a magical town with your new friend Woofy!</p>
+                <button onclick="startGame()" class="btn btn-primary">Start Game</button>
+            </div>
+        </div>
+
+        <!-- Name Screen -->
+        <div id="nameScreen" class="screen hidden">
+            <div class="form-content">
+                <h2>What's Your Name?</h2>
+                <input 
+                    type="text" 
+                    id="playerName" 
+                    placeholder="Enter your name"
+                    onkeypress="if(event.key==='Enter') submitName()"
+                >
+                <button onclick="submitName()" class="btn btn-primary">Next</button>
+            </div>
+        </div>
+
+        <!-- Town Screen -->
+        <div id="townScreen" class="screen hidden">
+            <div class="form-content">
+                <h2 id="nameGreeting">Welcome!</h2>
+                <p>Now, let's name your town!</p>
+                <input 
+                    type="text" 
+                    id="townName" 
+                    placeholder="Enter your town name"
+                    onkeypress="if(event.key==='Enter') submitTown()"
+                >
+                <button onclick="submitTown()" class="btn btn-primary">Next</button>
+            </div>
+        </div>
+
+        <!-- Customization Screen -->
+        <div id="customizationScreen" class="screen hidden">
+            <div class="customization-container">
+                <div class="customization-left">
+                    <h2 id="townGreeting">Customize Your Character!</h2>
+                    
+                    <!-- Character Preview SVG -->
+                    <svg id="characterSVG" class="character-preview" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Head -->
+                        <circle id="head" cx="100" cy="80" r="30" fill="#FDBCB4"/>
+                        
+                        <!-- Hair -->
+                        <g id="hair">
+                            <path d="M 60 50 Q 100 20 140 50 Q 120 40 100 40 Q 80 40 60 50" fill="#8B4513" stroke="none"/>
+                        </g>
+                        
+                        <!-- Eyes -->
+                        <circle cx="90" cy="75" r="3" fill="#333"/>
+                        <circle cx="110" cy="75" r="3" fill="#333"/>
+                        
+                        <!-- Nose -->
+                        <circle id="nose" cx="100" cy="85" r="6" fill="#333"/>
+                        
+                        <!-- Mouth -->
+                        <path d="M 95 95 Q 100 98 105 95" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
+                        
+                        <!-- Body -->
+                        <rect x="80" y="110" width="40" height="35" fill="#4A90E2" rx="5"/>
+                        
+                        <!-- Arms -->
+                        <rect x="40" y="115" width="35" height="15" fill="#FDBCB4" rx="7"/>
+                        <rect x="130" y="115" width="35" height="15" fill="#FDBCB4" rx="7"/>
+                        
+                        <!-- Legs -->
+                        <rect x="85" y="150" width="12" height="30" fill="#333" rx="6"/>
+                        <rect x="105" y="150" width="12" height="30" fill="#333" rx="6"/>
+                    </svg>
+                </div>
+
+                <div class="customization-right">
+                    <div class="customization-options">
+                        <!-- Hair Style -->
+                        <div class="option-group">
+                            <h3>Hair Style</h3>
+                            <div class="button-group">
+                                <button data-style="straight" class="btn btn-style active" onclick="setHairStyle('straight')">Straight</button>
+                                <button data-style="curly" class="btn btn-style" onclick="setHairStyle('curly')">Curly</button>
+                                <button data-style="wavy" class="btn btn-style" onclick="setHairStyle('wavy')">Wavy</button>
+                                <button data-style="spiky" class="btn btn-style" onclick="setHairStyle('spiky')">Spiky</button>
+                            </div>
+                        </div>
+
+                        <!-- Hair Color -->
+                        <div class="option-group">
+                            <h3>Hair Color</h3>
+                            <div class="color-picker">
+                                <button class="color-btn active" style="background: #8B4513;" onclick="setHairColor('#8B4513')" title="Brown"></button>
+                                <button class="color-btn" style="background: #FFD700;" onclick="setHairColor('#FFD700')" title="Blonde"></button>
+                                <button class="color-btn" style="background: #000000;" onclick="setHairColor('#000000')" title="Black"></button>
+                                <button class="color-btn" style="background: #DC143C;" onclick="setHairColor('#DC143C')" title="Red"></button>
+                                <button class="color-btn" style="background: #FF69B4;" onclick="setHairColor('#FF69B4')" title="Pink"></button>
+                                <button class="color-btn" style="background: #87CEEB;" onclick="setHairColor('#87CEEB')" title="Blue"></button>
+                            </div>
+                        </div>
+
+                        <!-- Skin Tone -->
+                        <div class="option-group">
+                            <h3>Skin Tone</h3>
+                            <div class="color-picker">
+                                <button class="color-btn active" style="background: #FDBCB4;" onclick="setSkinTone('#FDBCB4')" title="Light"></button>
+                                <button class="color-btn" style="background: #F4A460;" onclick="setSkinTone('#F4A460')" title="Medium"></button>
+                                <button class="color-btn" style="background: #D2691E;" onclick="setSkinTone('#D2691E')" title="Tan"></button>
+                                <button class="color-btn" style="background: #8B4513;" onclick="setSkinTone('#8B4513')" title="Dark"></button>
+                            </div>
+                        </div>
+
+                        <!-- Nose Style -->
+                        <div class="option-group">
+                            <h3>Nose Style</h3>
+                            <div class="button-group">
+                                <button data-nose="round" class="btn btn-style active" onclick="setNose('round')">Round</button>
+                                <button data-nose="triangle" class="btn btn-style" onclick="setNose('triangle')">Triangle</button>
+                                <button data-nose="square" class="btn btn-style" onclick="setNose('square')">Square</button>
+                                <button data-nose="heart" class="btn btn-style" onclick="setNose('heart')">Heart</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="finishCustomization()" class="btn btn-primary">Finish</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Start Screen -->
+        <div id="gameStartScreen" class="screen hidden">
+            <div class="game-start-content">
+                <h2>Character Complete!</h2>
+                
+                <!-- Large Character Preview -->
+                <svg id="characterLargeSVG" class="character-large" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Head -->
+                    <circle id="head" cx="100" cy="80" r="30" fill="#FDBCB4"/>
+                    
+                    <!-- Hair -->
+                    <g id="hair">
+                        <path d="M 60 50 Q 100 20 140 50 Q 120 40 100 40 Q 80 40 60 50" fill="#8B4513" stroke="none"/>
+                    </g>
+                    
+                    <!-- Eyes -->
+                    <circle cx="90" cy="75" r="3" fill="#333"/>
+                    <circle cx="110" cy="75" r="3" fill="#333"/>
+                    
+                    <!-- Nose -->
+                    <circle id="nose" cx="100" cy="85" r="6" fill="#333"/>
+                    
+                    <!-- Mouth -->
+                    <path d="M 95 95 Q 100 98 105 95" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    
+                    <!-- Body -->
+                    <rect x="80" y="110" width="40" height="35" fill="#4A90E2" rx="5"/>
+                    
+                    <!-- Arms -->
+                    <rect x="40" y="115" width="35" height="15" fill="#FDBCB4" rx="7"/>
+                    <rect x="130" y="115" width="35" height="15" fill="#FDBCB4" rx="7"/>
+                    
+                    <!-- Legs -->
+                    <rect x="85" y="150" width="12" height="30" fill="#333" rx="6"/>
+                    <rect x="105" y="150" width="12" height="30" fill="#333" rx="6"/>
+                </svg>
+
+                <p id="finalDialogue" style="margin-top: 30px; font-size: 18px; text-align: center;">
+                    Get ready for your adventure!
+                </p>
+                
+                <button onclick="enterGame()" class="btn btn-primary">Enter Game</button>
+            </div>
+        </div>
+
+        <!-- Main Game Screen -->
+        <div id="gameScreen" class="screen hidden">
+            <div class="game-container">
+                <h1 id="gameTitle">Welcome!</h1>
+                <p id="playerStats"></p>
+                <div id="gameContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
