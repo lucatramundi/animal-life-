@@ -1,0 +1,435 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 1000px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    min-height: 500px;
+}
+
+.screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 500px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.screen.hidden {
+    display: none;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Welcome Screen */
+#welcomeScreen {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.welcome-content {
+    text-align: center;
+    color: white;
+    padding: 40px;
+}
+
+.welcome-content h1 {
+    font-size: 48px;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.welcome-content h2 {
+    font-size: 24px;
+    margin-bottom: 30px;
+    font-weight: 300;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.welcome-content p {
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 30px 0;
+    max-width: 500px;
+}
+
+/* Form Screens */
+.form-content {
+    text-align: center;
+    padding: 60px 40px;
+    width: 100%;
+}
+
+.form-content h2 {
+    font-size: 32px;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.form-content p {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.form-content input {
+    width: 100%;
+    max-width: 400px;
+    padding: 15px;
+    font-size: 16px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
+}
+
+.form-content input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 30px;
+    font-size: 16px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 40px;
+    font-size: 18px;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-style {
+    background: #f0f0f0;
+    color: #333;
+    padding: 10px 20px;
+    border: 2px solid #ddd;
+    margin: 5px;
+}
+
+.btn-style:hover {
+    border-color: #667eea;
+    background: #f8f8f8;
+}
+
+.btn-style.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+/* Color Picker */
+.color-picker {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 15px 0;
+}
+
+.color-btn {
+    width: 50px;
+    height: 50px;
+    border: 3px solid #ddd;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.color-btn:hover {
+    transform: scale(1.1);
+    border-color: #667eea;
+}
+
+.color-btn.active {
+    border-color: #333;
+    box-shadow: 0 0 0 3px white, 0 0 0 5px #333;
+}
+
+/* Customization Screen */
+#customizationScreen {
+    padding: 40px;
+    background: #f8f9fa;
+}
+
+.customization-container {
+    display: flex;
+    gap: 40px;
+    width: 100%;
+    max-width: 1200px;
+}
+
+.customization-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.customization-left h2 {
+    font-size: 28px;
+    color: #333;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.character-preview {
+    width: 250px;
+    height: 250px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    padding: 10px;
+}
+
+.customization-right {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 600px;
+    padding-right: 20px;
+}
+
+.customization-right::-webkit-scrollbar {
+    width: 8px;
+}
+
+.customization-right::-webkit-scrollbar-track {
+    background: #e0e0e0;
+    border-radius: 10px;
+}
+
+.customization-right::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 10px;
+}
+
+.option-group {
+    margin-bottom: 30px;
+}
+
+.option-group h3 {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.button-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.customization-right .btn-primary {
+    width: 100%;
+    margin-top: 20px;
+}
+
+/* Game Start Screen */
+#gameStartScreen {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.game-start-content {
+    text-align: center;
+    color: white;
+    padding: 40px;
+}
+
+.game-start-content h2 {
+    font-size: 36px;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.character-large {
+    width: 300px;
+    height: 300px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    margin: 0 auto;
+}
+
+.game-start-content p {
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 500px;
+    margin: 0 auto;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Game Screen */
+#gameScreen {
+    background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+    padding: 40px;
+}
+
+.game-container {
+    background: white;
+    border-radius: 15px;
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+    width: 100%;
+}
+
+.game-container h1 {
+    font-size: 36px;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+#playerStats {
+    font-size: 18px;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+#gameContent {
+    text-align: center;
+    padding: 30px 0;
+}
+
+#gameContent p {
+    font-size: 16px;
+    color: #666;
+    line-height: 1.8;
+    margin-bottom: 15px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .customization-container {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .customization-right {
+        max-height: none;
+        padding-right: 0;
+    }
+
+    .character-preview {
+        width: 200px;
+        height: 200px;
+    }
+
+    .character-large {
+        width: 250px;
+        height: 250px;
+    }
+
+    .button-group {
+        grid-template-columns: 1fr;
+    }
+
+    .color-picker {
+        gap: 8px;
+    }
+
+    .color-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .welcome-content h1 {
+        font-size: 36px;
+    }
+
+    .welcome-content h2 {
+        font-size: 18px;
+    }
+
+    .btn-style {
+        padding: 8px 15px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .screen {
+        min-height: auto;
+    }
+
+    .container {
+        min-height: auto;
+    }
+
+    .form-content {
+        padding: 40px 20px;
+    }
+
+    .welcome-content {
+        padding: 30px 20px;
+    }
+
+    .welcome-content h1 {
+        font-size: 28px;
+    }
+
+    .welcome-content h2 {
+        font-size: 16px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+
+    .btn-primary {
+        padding: 12px 30px;
+        font-size: 16px;
+    }
+
+    .character-preview {
+        width: 150px;
+        height: 150px;
+    }
+
+    .character-large {
+        width: 200px;
+        height: 200px;
+    }
+}
