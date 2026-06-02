@@ -69,10 +69,10 @@ function setHairStyle(style) {
 function setHairColor(color) {
     gameState.hairColor = color;
     
-    // Update active state on color buttons
-    document.querySelectorAll('.customization-options .color-picker:nth-of-type(1) .color-btn').forEach(btn => {
-        const btnColor = btn.style.background;
-        if (btnColor === color) {
+    // Update active state on color buttons for hair color
+    const hairColorGroup = document.querySelectorAll('.option-group')[1]; // Hair Color is the second option group
+    hairColorGroup.querySelectorAll('.color-btn').forEach(btn => {
+        if (btn.getAttribute('onclick').includes(color)) {
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
@@ -86,8 +86,9 @@ function setSkinTone(tone) {
     gameState.skinTone = tone;
     
     // Update active state on skin tone buttons
-    document.querySelectorAll('.customization-options .color-picker:nth-of-type(2) .color-btn').forEach(btn => {
-        if (btn.style.background === tone) {
+    const skinToneGroup = document.querySelectorAll('.option-group')[2]; // Skin Tone is the third option group
+    skinToneGroup.querySelectorAll('.color-btn').forEach(btn => {
+        if (btn.getAttribute('onclick').includes(tone)) {
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
