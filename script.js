@@ -76,6 +76,7 @@ function setHairColor(color) {
         // Prefer data-color attribute if present
         const dataColor = btn.getAttribute('data-color') || (btn.dataset && btn.dataset.color) || '';
         if (dataColor) {
+            console.log("Setting Color"+color)
             btn.classList.toggle('active', dataColor.toLowerCase() === color.toLowerCase());
             return;
         }
