@@ -67,26 +67,59 @@ function setHairStyle(style) {
 }
 
 function setHairColor(color) {
+    // update state
     gameState.hairColor = color;
-    
-    // Update active state on color buttons
-    document.querySelectorAll('.customization-options .color-picker:first-of-type .color-btn').forEach(btn => {
-        if (btn.style.background === color) {
-            btn.classList.add('active');
+
+    // Update active state on all color buttons
+    document.querySelectorAll('.color-btn').forEach(btn => {
+        const dataColor = btn.getAttribute('data-color') || (btn.dataset && btn.dataset.color) || '';
+        if (dataColor) {
+            btn.classList.toggle('active', dataColor.toLowerCase() === color.toLowerCase());
+            return;
+        }
+        const onclick = btn.getAttribute('onclick') || '';
+        if (onclick.includes('setHairColor')) {
+            btn.classList.toggle('active', onclick.indexOf(color) !== -1);
+            return;
+        }
+        btn.classList.remove('active');
+    });
+
+    // Immediately update both SVG previews: apply fill directly to the inner path (if present)
+    ['characterSVG', 'characterLargeSVG'].forEach(svgId => {
+        const hairEl = document.querySelector(`#${svgId} #hair`);
+        if (!hairEl) return;
+
+        // The visible color is usually on the <path> inside the group; prefer updating that element.
+        const inner = hairEl.querySelector('path, circle, rect, polygon');
+        if (inner) {
+            inner.setAttribute('fill', color);
         } else {
-            btn.classList.remove('active');
+            // If there's no inner shape, set the group's fill as a fallback
+            hairEl.setAttribute('fill', color);
+        }
+
+        // Ensure the shape matches the current hairstyle
+        try {
+            updateHairStyle(hairEl);
+            // If updateHairStyle created/updated a <path>, ensure it has the correct fill
+            const after = hairEl.querySelector('path');
+            if (after) after.setAttribute('fill', color);
+        } catch (e) {
+            // ignore
         }
     });
-    
+
+    // Refresh the rest of the character preview to keep everything in sync
     updateCharacterPreview();
 }
 
 function setSkinTone(tone) {
     gameState.skinTone = tone;
     
-    // Update active state on skin tone buttons
-    document.querySelectorAll('.customization-options .color-picker:last-of-type .color-btn').forEach(btn => {
-        if (btn.style.background === tone) {
+    const skinToneGroup = document.querySelectorAll('.option-group')[2]; // Skin Tone is the third option group
+    skinToneGroup.querySelectorAll('.color-btn').forEach(btn => {
+        if (btn.getAttribute('onclick').includes(tone)) {
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
@@ -115,11 +148,19 @@ function updateCharacterSVG(svgId) {
     const head = document.querySelector(`#${svgId} #head`);
     if (head) head.setAttribute('fill', gameState.skinTone);
     
-    // Update hair based on style
+    // Update hair: set fill on inner path if present, then update style
     const hair = document.querySelector(`#${svgId} #hair`);
     if (hair) {
-        hair.setAttribute('fill', gameState.hairColor);
+        const inner = hair.querySelector('path, circle, rect, polygon');
+        if (inner) {
+            inner.setAttribute('fill', gameState.hairColor);
+        } else {
+            hair.setAttribute('fill', gameState.hairColor);
+        }
         updateHairStyle(hair);
+        // After style change ensure the path has the correct fill
+        const updated = hair.querySelector('path');
+        if (updated) updated.setAttribute('fill', gameState.hairColor);
     }
     
     // Update arms color
@@ -140,10 +181,17 @@ function updateHairStyle(hairElement) {
         spiky: 'M 60 50 L 70 15 L 80 35 L 90 10 L 100 35 L 110 10 L 120 35 L 130 15 L 140 50'
     };
     
-    const path = hairElement.querySelector('path');
-    if (path) {
-        path.setAttribute('d', styles[gameState.hairStyle]);
+    // Ensure there's a path inside the group to update the 'd' attribute.
+    let path = hairElement.querySelector('path');
+    if (!path) {
+        // create a path if none exists
+        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        hairElement.appendChild(path);
     }
+    
+    path.setAttribute('d', styles[gameState.hairStyle]);
+    // Keep the fill in sync in case callers set the group's fill
+    if (gameState.hairColor) path.setAttribute('fill', gameState.hairColor);
 }
 
 function updateNose(svgId) {
