@@ -1,18 +1,10 @@
-const { app, input } = require('@azure/functions');
+const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
-
-// 1. Define the Table Storage Input Binding
-const tableInput = input.table({
-    tableName: 'OnlineUsers',
-    partitionKey: 'Presence',
-    connection: 'StorageConnection'
-});
 
 // 2. Register the HTTP Trigger function
 app.http('heartbeat', {
     methods: ['POST'],
     authLevel: 'anonymous',
-    extraInputs: [tableInput],
     handler: async (request, context) => {
         try {
             const { name, avatar } = await request.json();
@@ -22,11 +14,13 @@ app.http('heartbeat', {
                 return { status: 400, jsonBody: { error: "Missing visitor info." } };
             }
 
-            // 3. Upsert the current user (insert or replace if already exists)
             const tableClient = TableClient.fromConnectionString(
                 process.env.StorageConnection,
                 'OnlineUsers'
             );
+            await tableClient.createTable();
+
+            // 3. Upsert the current user
             await tableClient.upsertEntity({
                 partitionKey: "Presence",
                 rowKey: name,
@@ -34,22 +28,23 @@ app.http('heartbeat', {
                 LastSeen: now.toString()
             }, "Merge");
 
-            // 4. Retrieve and filter the input table rows
+            // 4. Query and filter active users from the last 30 seconds
             const thirtySecondsAgo = now - 30000;
             const activeUsers = [];
 
-            // Get rows read automatically by the input binding
-            const rows = context.extraInputs.get(tableInput) || [];
+            const rows = tableClient.listEntities({
+                queryOptions: { filter: `PartitionKey eq 'Presence'` }
+            });
 
-            rows.forEach(user => {
+            for await (const user of rows) {
                 const lastSeenTime = parseInt(user.LastSeen || 0);
                 if (lastSeenTime > thirtySecondsAgo) {
                     activeUsers.push({
-                        name: user.RowKey,
+                        name: user.rowKey,
                         avatar: user.AvatarUrl
                     });
                 }
-            });
+            }
 
             // 5. Return the clean list
             return {

@@ -3,6 +3,7 @@
   "Values": {
     "StorageConnection": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node"
+    
   },
   "Host": {
     "CORS": "*"

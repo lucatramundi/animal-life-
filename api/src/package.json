@@ -2,7 +2,7 @@
   "name": "presence-api",
   "version": "1.0.0",
   "description": "",
-  "main": "src/functions/*.js",
+  "main": "functions/*.js",
   "type": "commonjs",
   "dependencies": {
     "@azure/data-tables": "^13.3.0",
