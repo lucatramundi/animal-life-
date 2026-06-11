@@ -41,8 +41,8 @@ jobs:
           api_location: ""
           output_location: "."
           github_id_token: ${{ steps.idtoken.outputs.result }}
-          resource_group_name: "YOUR_RESOURCE_GROUP_NAME"
-          static_web_app_name: "YOUR_STATIC_WEB_APP_NAME"
+          resource_group_name: "vplay_group"
+          static_web_app_name: "vplay"
           skip_app_build: true
 
   close_pull_request_job:
