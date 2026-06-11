@@ -10,6 +10,10 @@ async function sendHeartbeat() {
             body: JSON.stringify({ name: visitorName, avatar: iconUrl })
         });
 
+        if (!response.ok) {
+            console.error("Heartbeat API error:", response.status);
+            return;
+        }
         const onlineUsers = await response.json();
         updateOnlineUsersUI(onlineUsers);
     } catch (err) {
