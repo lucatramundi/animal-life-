@@ -1,16 +1,1 @@
-{
-    "navigationFallback": {
-        "rewrite": "/index.html",
-        "exclude": [
-            "/api/*",
-            "*.{css,js,jpg,png,svg,ico}"
-        ]
-    },
-    "globalHeaders": {
-        "X-Frame-Options": "SAMEORIGIN",
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "no-referrer-when-downgrade",
-        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https://api.dicebear.com data:; connect-src 'self' https://api.dicebear.com"
-    }
-    
-}
+{"navigationFallback":{"rewrite":"/index.html","exclude":["/api/*","*.{css,js,jpg,png,svg,ico}"]},"globalHeaders":{"X-Frame-Options":"SAMEORIGIN","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer-when-downgrade","Content-Security-Policy":"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https://api.dicebear.com data:; connect-src 'self' https://api.dicebear.com"},"auth":{"rolesSource":"/api/getRoles","identityProviders":{"azureActiveDirectory":{"registration":{"openIdIssuer":"https://login.microsoftonline.com/c9a7654a-5212-4510-94a0-57f7f18d33b6","clientIdSettingName":"AZURE_CLIENT_ID","clientSecretSettingName":"AZURE_CLIENT_SECRET_APP_SETTING_NAME"}}}}}
