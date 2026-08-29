@@ -1,5 +1,18 @@
 <html>
+    <head>
+        <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+    </head>
 <body>
+    <div id="auth-container">
+  <!-- Shown when logged out -->
+  <button id="login-btn" onclick="signIn()">Sign In with Microsoft</button>
+  
+  <!-- Shown when logged in -->
+  <div id="user-profile" style="display: none;">
+    <p>Welcome, <strong id="user-name"></strong>!</p>
+    <button id="logout-btn" onclick="signOut()">Sign Out</button>
+  </div>
+   </div>
     <div id="welcome-container">
         <h3>hi want to play some games? Let's dive in</h3>
         <p>Click on the button below to join the fun and see who's online!</p>
