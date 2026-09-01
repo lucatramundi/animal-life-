@@ -10,5 +10,5 @@
         "X-Frame-Options": "SAMEORIGIN",
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "no-referrer-when-downgrade",
-"Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://alcdn.msauth.net; style-src 'self' 'unsafe-inline'; img-src 'self' https://api.dicebear.com data:; connect-src 'self' https://api.dicebear.com https://login.microsoftonline.com https://graph.microsoft.com"    }    
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://alcdn.msauth.net; style-src 'self' 'unsafe-inline'; img-src 'self' https://api.dicebear.com data:; connect-src 'self' https://api.dicebear.com https://login.microsoftonline.com https://graph.microsoft.com"    }    
 }
