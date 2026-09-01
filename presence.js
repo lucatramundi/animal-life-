@@ -8,14 +8,14 @@ function getOrCreateVisitorName() {
 }
 
 async function sendHeartbeat() {
-    const visitorName = getOrCreateVisitorName();
-    const iconUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(visitorName)}`;
+    const presenceName = getPresenceName() || getOrCreateVisitorName();
+    const iconUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(presenceName)}`;
 
     try {
         const response = await fetch('/api/heartbeat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: visitorName, avatar: iconUrl })
+            body: JSON.stringify({ name: presenceName, avatar: iconUrl })
         });
 
         if (!response.ok) {

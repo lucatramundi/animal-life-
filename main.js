@@ -15,6 +15,11 @@ function getSignedInAccount() {
   return msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0] || null;
 }
 
+function getPresenceName() {
+  const account = getSignedInAccount();
+  return account ? account.name || account.username : null;
+}
+
 function renderAuthState(account, message) {
   const loginButton = document.getElementById("login-btn");
   const profile = document.getElementById("user-profile");
@@ -83,6 +88,7 @@ async function signIn() {
     const result = await msalInstance.loginPopup({ scopes: ["User.Read"] });
     msalInstance.setActiveAccount(result.account);
     renderAuthState(result.account, "You are signed in.");
+    sendHeartbeat();
   } catch (error) {
     console.error("Sign-in failed:", error);
     renderAuthState(null, "Sign-in was cancelled or could not be completed.");
@@ -97,6 +103,7 @@ async function signOut() {
   try {
     await msalInstance.logoutPopup({ account: getSignedInAccount() });
     renderAuthState(null, "Goodbye. You have been signed out.");
+    sendHeartbeat();
   } catch (error) {
     console.error("Sign-out failed:", error);
     renderAuthState(getSignedInAccount(), "Sign-out could not be completed.");
