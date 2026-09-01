@@ -1,0 +1,25 @@
+<html>
+    <head>
+        <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+    </head>
+<body>
+    <div id="auth-container">
+  <!-- Shown when logged out -->
+  <button id="login-btn" onclick="signIn()">Please login in zplay platform</button>
+  
+  <!-- Shown when logged in -->
+  <div id="user-profile" style="display: none;">
+    <p>Welcome, <strong id="user-name"></strong>!</p>
+    <button id="logout-btn" onclick="signOut()">Sign Out</button>
+  </div>
+   </div>
+    <div id="welcome-container">
+        <h3>hi friend let's have some fun together</h3>
+        <p>Click on the button below to join the fun and see who's online!</p>
+        <button id="join-btn" onclick="toggleWelcome()">Join the Game</button>
+    </div>
+    <div id="online-users-list"></div>
+    <script src="presence.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>        

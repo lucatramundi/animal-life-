@@ -1,25 +1,63 @@
 <html>
     <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ZPlay</title>
+        <link rel="stylesheet" href="styles.css">
         <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+        <script src="main.js"></script>
     </head>
 <body>
-    <div id="auth-container">
-  <!-- Shown when logged out -->
-  <button id="login-btn" onclick="signIn()">Sign In with Microsoft</button>
-  
-  <!-- Shown when logged in -->
-  <div id="user-profile" style="display: none;">
-    <p>Welcome, <strong id="user-name"></strong>!</p>
-    <button id="logout-btn" onclick="signOut()">Sign Out</button>
-  </div>
-   </div>
-    <div id="welcome-container">
-        <h3>hi want to play some games? Let's dive in</h3>
-        <p>Click on the button below to join the fun and see who's online!</p>
-        <button id="join-btn" onclick="toggleWelcome()">Join the Game</button>
+<main class="zplay-landing">
+  <section class="zplay-intro" aria-labelledby="zplay-title">
+    <p class="zplay-kicker">A small world of big play</p>
+    <h1 id="zplay-title">ZPlay</h1>
+    <p class="zplay-tagline">Step through the portal, make your mark, and find your next favorite game.</p>
+    <div class="portal-scene" aria-hidden="true">
+      <span class="star star-one"></span>
+      <span class="star star-two"></span>
+      <span class="star star-three"></span>
+      <span class="cloud cloud-one"></span>
+      <span class="cloud cloud-two"></span>
+      <span class="island">
+        <span class="tree tree-one"></span>
+        <span class="tree tree-two"></span>
+        <span class="portal"></span>
+      </span>
     </div>
-    <div id="online-users-list"></div>
-    <script src="presence.js"></script>
-    <script src="main.js"></script>
+  </section>
+  <section id="auth-container" class="auth-panel" aria-label="Account">
+    <p id="auth-message" role="status" aria-live="polite"></p>
+    <button id="login-btn" class="auth-button" type="button" onclick="signIn()">Sign in to ZPlay</button>
+    <div id="user-profile" hidden>
+      <p>Welcome back, <strong id="user-name"></strong>.</p>
+      <button id="logout-btn" class="auth-button secondary" type="button" onclick="signOut()">Sign out</button>
+    </div>
+  </section>
+
+  <section id="community-area" class="community-area" hidden aria-label="ZPlay community">
+    <section class="community-panel player-panel" aria-labelledby="players-heading">
+      <div class="panel-heading">
+        <p class="panel-kicker">Online now</p>
+        <h2 id="players-heading">Choose a player</h2>
+      </div>
+      <div id="online-users-list" class="online-users-list" aria-live="polite"></div>
+    </section>
+
+    <section class="community-panel chat-panel" aria-labelledby="chat-heading">
+      <div class="panel-heading">
+        <p class="panel-kicker">Direct message</p>
+        <h2 id="chat-heading">Select someone to chat</h2>
+      </div>
+      <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+      <form id="chat-form" class="chat-form">
+        <label class="sr-only" for="chat-input">Message</label>
+        <input id="chat-input" name="message" type="text" maxlength="280" placeholder="Write a message" autocomplete="off" disabled>
+        <button class="send-button" type="submit" aria-label="Send message" disabled>Send</button>
+      </form>
+    </section>
+  </section>
+</main>
+<script src="presence.js"></script>
 </body>
 </html>        

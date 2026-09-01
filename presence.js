@@ -32,16 +32,24 @@ async function sendHeartbeat() {
 function updateOnlineUsersUI(users) {
     const container = document.getElementById('online-users-list');
     if (!container) return;
-    container.innerHTML = '';
+    container.replaceChildren();
 
     users.forEach(user => {
-        const userMarkup = `
-            <div class="user-badge">
-                <img src="${user.avatar}" width="40" height="40" />
-                <span>${user.name}</span>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', userMarkup);
+        const userButton = document.createElement('button');
+        const avatar = document.createElement('img');
+        const name = document.createElement('span');
+
+        userButton.type = 'button';
+        userButton.className = 'user-badge';
+        userButton.dataset.userName = user.name;
+        userButton.addEventListener('click', () => selectChatUser(user.name));
+        avatar.src = user.avatar;
+        avatar.width = 40;
+        avatar.height = 40;
+        avatar.alt = '';
+        name.textContent = user.name;
+        userButton.append(avatar, name);
+        container.append(userButton);
     });
 }
 
