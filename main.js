@@ -9,7 +9,7 @@ const msalConfig = {
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-async function login() {
+async function SignIn() {
   await msalInstance.loginPopup({ scopes: ["User.Read"] });
   const account = msalInstance.getActiveAccount();
   console.log("Logged in user:", account);
