@@ -50,6 +50,23 @@ function requireScope(scopeClaim) {
     }
 }
 
+function getTokenClaimSummary(token) {
+    try {
+        const payload = JSON.parse(
+            Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
+        );
+
+        return {
+            issuer: payload.iss || null,
+            audience: payload.aud || null,
+            scopes: payload.scp || null,
+            tenant: payload.tid || null
+        };
+    } catch {
+        return { tokenClaims: 'unavailable' };
+    }
+}
+
 async function authenticateRequest(request) {
     const token = getBearerToken(request);
     const { jwtVerify } = await import("jose");
@@ -78,7 +95,11 @@ async function authenticateRequest(request) {
             throw error;
         }
 
-        console.error("Entra access-token validation failed:", error.message);
+        console.error(
+            "Entra access-token validation failed:",
+            error.message,
+            getTokenClaimSummary(token)
+        );
 
         const authenticationError = new Error("Invalid or expired access token.");
         authenticationError.statusCode = 401;
