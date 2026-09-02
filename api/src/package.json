@@ -6,6 +6,7 @@
   "type": "commonjs",
   "dependencies": {
     "@azure/data-tables": "^13.3.0",
-    "@azure/functions": "^4.16.0"
+    "@azure/functions": "^4.16.0",
+    "jose": "^6.2.3"
   }
 }
