@@ -4,3 +4,4 @@ package-lock.json
 __*
 *.env
 .azurite
+.local.settings.json
