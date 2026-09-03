@@ -12,7 +12,7 @@
   <section class="zplay-intro" aria-labelledby="zplay-title">
     <p class="zplay-kicker">A small world of big dream. Imagination should be the driver of your life</p>
     <h1 id="zplay-title">ZPlay</h1>
-    <p class="zplay-tagline">Step through the portal, make your idea and dream come trough, and have some fun with your amazing Friends.</p>
+    <p class="zplay-tagline">Step through the portal, make your idea and dream come true, and have some fun with your amazing Friends.</p>
     <div class="portal-scene" aria-hidden="true">
       <span class="star star-one"></span>
       <span class="star star-two"></span>
@@ -38,9 +38,11 @@
   <section id="community-area" class="community-area" hidden aria-label="ZPlay community">
     <section class="community-panel player-panel" aria-labelledby="players-heading">
       <div class="panel-heading">
-        <p class="panel-kicker">Online now</p>
+        <p class="panel-kicker">Online & recent</p>
         <h2 id="players-heading">Choose a player</h2>
       </div>
+      <label class="sr-only" for="user-search-input">Search users</label>
+      <input id="user-search-input" class="directory-search-input" type="search" placeholder="Search Entra users" autocomplete="off">
       <div id="online-users-list" class="online-users-list" aria-live="polite"></div>
     </section>
 

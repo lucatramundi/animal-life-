@@ -1,3 +1,5 @@
+const { requireAllowedUser } = require('./groupAccess');
+
 const tenantId = process.env.ENTRA_TENANT_ID;
 const audience = process.env.ENTRA_API_AUDIENCE;
 const requiredScope = "access_as_user";
@@ -110,6 +112,8 @@ async function authenticateRequest(request) {
             error.statusCode = 401;
             throw error;
         }
+
+        await requireAllowedUser(payload.oid, payload);
 
         return {
             id: payload.oid,
