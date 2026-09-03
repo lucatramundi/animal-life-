@@ -1,12 +1,12 @@
 const { requireAllowedUser } = require('./groupAccess');
 
-const tenantId = process.env.ENTRA_TENANT_ID;
+const tenantId = process.env.AZURE_TENANT_ID;
 const audience = process.env.ENTRA_API_AUDIENCE;
 const requiredScope = "access_as_user";
 
 if (!tenantId || !audience) {
     throw new Error(
-        "ENTRA_TENANT_ID and ENTRA_API_AUDIENCE must be configured."
+        "AZURE_TENANT_ID and ENTRA_API_AUDIENCE must be configured."
     );
 }
 

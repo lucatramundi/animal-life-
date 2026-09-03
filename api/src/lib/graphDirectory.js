@@ -7,16 +7,16 @@ let cachedAccessToken = null;
 let accessTokenExpiresAt = 0;
 
 function getGraphTenantId() {
-	return process.env.ENTRA_TENANT_ID;
+	return process.env.AZURE_TENANT_ID;
 }
 
 function getGraphClientId() {
-	return (process.env.ENTRA_GRAPH_CLIENT_ID || process.env.ENTRA_API_AUDIENCE || '')
+	return (process.env.AZURE_CLIENT_ID || '')
 		.replace(/^api:\/\//, '');
 }
 
 function getGraphClientSecret() {
-	return process.env.ENTRA_GRAPH_CLIENT_SECRET;
+	return process.env.AZURE_CLIENT_SECRET;
 }
 
 function isGraphDirectoryConfigured() {
