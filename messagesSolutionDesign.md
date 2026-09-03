@@ -115,7 +115,7 @@ Azure Table Storage is an appropriate low-cost store for a small chat applicatio
 - Configure `StorageConnection` as an Azure Function App application setting, never in source control.
 - Keep the client secret-free. A single-page app should never contain a client secret.
 - If group restriction is enabled, configure `ENTRA_ALLOWED_GROUP_ID` with the Entra object ID of the allowed group.
-- If server-side Graph lookup is enabled, configure `ENTRA_GRAPH_CLIENT_ID`, `ENTRA_GRAPH_CLIENT_SECRET`, and grant the app Microsoft Graph application permissions needed for the scenario, such as `GroupMember.Read.All` and `User.Read.All`, with admin consent.
+- If server-side Graph lookup is enabled, configure `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`, then grant the app Microsoft Graph application permissions needed for the scenario, such as `GroupMember.Read.All` and `User.Read.All`, with admin consent.
 - Restrict the deployed Content Security Policy to the necessary Entra, Graph if used, and same-origin API connections.
 - Keep redirect URIs in the Entra app registration aligned with the MSAL `redirectUri` value.
 
