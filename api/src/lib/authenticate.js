@@ -53,11 +53,16 @@ function requireScope(scopeClaim) {
 
 function getTokenClaimSummary(token) {
     try {
+        const header = JSON.parse(
+            Buffer.from(token.split('.')[0], 'base64url').toString('utf8')
+        );
         const payload = JSON.parse(
             Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
         );
 
         return {
+            algorithm: header.alg || null,
+            keyId: header.kid || null,
             issuer: payload.iss || null,
             audience: payload.aud || null,
             scopes: payload.scp || null,
@@ -74,6 +79,7 @@ async function authenticateRequest(request) {
 
     try {
         const { payload } = await jwtVerify(token, await getJwks(), {
+            algorithms: ['RS256'],
             issuer: issuers,
             audience: audiences
         });
