@@ -12,7 +12,8 @@ const issuers = [
     `https://login.microsoftonline.com/${tenantId}/v2.0`,
     `https://sts.windows.net/${tenantId}/`
 ];
-const audiences = [audience, `api://${audience}`];
+const clientId = audience.replace(/^api:\/\//, "");
+const audiences = [clientId, `api://${clientId}`];
 const jwksUrl = new URL(
     `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`
 );
@@ -98,7 +99,12 @@ async function authenticateRequest(request) {
         console.error(
             "Entra access-token validation failed:",
             error.message,
-            getTokenClaimSummary(token)
+            {
+                configuredTenant: tenantId,
+                configuredAudience: audience,
+                acceptedAudiences: audiences,
+                ...getTokenClaimSummary(token)
+            }
         );
 
         const authenticationError = new Error("Invalid or expired access token.");
