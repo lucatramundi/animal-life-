@@ -101,7 +101,7 @@ async function loadChatMessages(requestId) {
     const accessToken = await getApiAccessToken();
     const response = await fetch(
       `/api/messages?userId=${encodeURIComponent(selectedChatUser.id)}`,
-      { headers: { "Authorization": `Bearer ${accessToken}` } }
+      { headers: { "X-ZPlay-Authorization": `Bearer ${accessToken}` } }
     );
 
     if (!response.ok) {
@@ -139,7 +139,7 @@ async function sendChatMessage(message) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`
+        "X-ZPlay-Authorization": `Bearer ${accessToken}`
       },
       body: JSON.stringify({ recipientId, body: message })
     });

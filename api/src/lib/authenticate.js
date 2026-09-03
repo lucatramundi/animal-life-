@@ -30,7 +30,8 @@ async function getJwks() {
 }
 
 function getBearerToken(request) {
-    const authorization = request.headers.get("authorization");
+    const authorization = request.headers.get("x-zplay-authorization")
+        || request.headers.get("authorization");
 
     if (!authorization?.startsWith("Bearer ")) {
         const error = new Error("Missing bearer token.");

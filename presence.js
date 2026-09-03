@@ -14,7 +14,7 @@ async function sendHeartbeat() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
+                'X-ZPlay-Authorization': `Bearer ${accessToken}`
             },
             body: JSON.stringify({ avatar: iconUrl })
         });
