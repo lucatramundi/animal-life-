@@ -73,11 +73,29 @@ function getTokenClaimSummary(token) {
     }
 }
 
+function getTokenHeader(token) {
+    try {
+        return JSON.parse(
+            Buffer.from(token.split('.')[0], 'base64url').toString('utf8')
+        );
+    } catch {
+        return {};
+    }
+}
+
 async function authenticateRequest(request) {
     const token = getBearerToken(request);
     const { jwtVerify } = await import("jose");
 
     try {
+        const tokenHeader = getTokenHeader(token);
+        if (tokenHeader.alg !== 'RS256') {
+            const error = new Error(
+                `Unsupported token algorithm received: ${String(tokenHeader.alg)}`
+            );
+            throw error;
+        }
+
         const { payload } = await jwtVerify(token, await getJwks(), {
             algorithms: ['RS256'],
             issuer: issuers,
@@ -102,16 +120,14 @@ async function authenticateRequest(request) {
             throw error;
         }
 
-        console.error(
-            "Entra access-token validation failed:",
-            error.message,
-            {
-                configuredTenant: tenantId,
-                configuredAudience: audience,
-                acceptedAudiences: audiences,
-                ...getTokenClaimSummary(token)
-            }
-        );
+        const summary = {
+            configuredTenant: tenantId,
+            configuredAudience: audience,
+            acceptedAudiences: audiences,
+            ...getTokenClaimSummary(token)
+        };
+        console.error(`Entra access-token validation failed: ${error.message}`);
+        console.error(`Entra token diagnostics: ${JSON.stringify(summary)}`);
 
         const authenticationError = new Error("Invalid or expired access token.");
         authenticationError.statusCode = 401;
