@@ -16,9 +16,24 @@ const apiScopes = [
 let selectedChatUser = null;
 let chatPollTimer = null;
 let chatRequestId = 0;
+let onlineUsers = [];
+let recentConversations = [];
+let knownUsers = [];
+let directorySearchRequestId = 0;
+let directorySearchTimer = null;
 
 function getSignedInAccount() {
   return msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0] || null;
+}
+
+function getCurrentUserId() {
+  const account = getSignedInAccount();
+  const objectId = account?.idTokenClaims?.oid;
+  if (typeof objectId === "string" && objectId) {
+    return objectId;
+  }
+
+  return account?.localAccountId || null;
 }
 
 function renderAuthState(account, message) {
@@ -42,6 +57,10 @@ function renderAuthState(account, message) {
   loginButton.hidden = false;
   profile.hidden = true;
   communityArea.hidden = true;
+  onlineUsers = [];
+  recentConversations = [];
+  knownUsers = [];
+  renderUserDirectory();
   clearChat();
   authMessage.textContent = message || "Please sign in to continue.";
 }
@@ -61,6 +80,196 @@ async function selectChatUser(id, name) {
   if (selectedChatUser?.id !== id || requestId !== chatRequestId) return;
 
   chatPollTimer = setInterval(() => loadChatMessages(requestId), 5000);
+}
+
+function getFallbackAvatarUrl(userId) {
+  return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userId)}`;
+}
+
+function getUserDirectoryEntries() {
+  const mergedUsers = new Map();
+
+  knownUsers.forEach((user) => {
+    mergedUsers.set(user.id, {
+      id: user.id,
+      name: user.name,
+      username: user.username || "",
+      avatar: getFallbackAvatarUrl(user.id),
+      isOnline: false,
+      isRecent: false,
+      lastMessageAt: "",
+      lastMessagePreview: ""
+    });
+  });
+
+  recentConversations.forEach((conversation) => {
+    const existingEntry = mergedUsers.get(conversation.id);
+    mergedUsers.set(conversation.id, {
+      id: conversation.id,
+      name: conversation.name || existingEntry?.name || conversation.id,
+      username: existingEntry?.username || "",
+      avatar: existingEntry?.avatar || getFallbackAvatarUrl(conversation.id),
+      isOnline: false,
+      isRecent: true,
+      lastMessageAt: conversation.lastMessageAt || "",
+      lastMessagePreview: conversation.lastMessagePreview || ""
+    });
+  });
+
+  onlineUsers.forEach((user) => {
+    const existingEntry = mergedUsers.get(user.id);
+    mergedUsers.set(user.id, {
+      id: user.id,
+      name: user.name || existingEntry?.name || user.id,
+      username: existingEntry?.username || "",
+      avatar: user.avatar || existingEntry?.avatar || getFallbackAvatarUrl(user.id),
+      isOnline: true,
+      isRecent: existingEntry?.isRecent || false,
+      lastMessageAt: existingEntry?.lastMessageAt || "",
+      lastMessagePreview: existingEntry?.lastMessagePreview || ""
+    });
+  });
+
+  return Array.from(mergedUsers.values()).sort((first, second) => {
+    if (first.isOnline !== second.isOnline) {
+      return first.isOnline ? -1 : 1;
+    }
+
+    if (first.isRecent !== second.isRecent) {
+      return first.isRecent ? -1 : 1;
+    }
+
+    if (first.lastMessageAt && second.lastMessageAt && first.lastMessageAt !== second.lastMessageAt) {
+      return second.lastMessageAt.localeCompare(first.lastMessageAt);
+    }
+
+    return first.name.localeCompare(second.name);
+  });
+}
+
+function renderUserDirectory() {
+  const container = document.getElementById("online-users-list");
+  if (!container) return;
+
+  container.replaceChildren();
+  const users = getUserDirectoryEntries();
+
+  if (users.length === 0) {
+    const emptyState = document.createElement("p");
+    emptyState.className = "user-list-empty";
+    emptyState.textContent = "No online players or recent conversations yet.";
+    container.append(emptyState);
+    return;
+  }
+
+  users.forEach((user) => {
+    const userButton = document.createElement("button");
+    const avatar = document.createElement("img");
+    const textWrap = document.createElement("span");
+    const name = document.createElement("span");
+    const meta = document.createElement("span");
+
+    userButton.type = "button";
+    userButton.className = "user-badge";
+    userButton.dataset.userId = user.id;
+    userButton.dataset.userName = user.name;
+    userButton.addEventListener("click", () => selectChatUser(user.id, user.name));
+    userButton.classList.toggle("selected", selectedChatUser?.id === user.id);
+
+    avatar.src = user.avatar;
+    avatar.width = 40;
+    avatar.height = 40;
+    avatar.alt = "";
+
+    textWrap.className = "user-copy";
+    name.className = "user-name";
+    name.textContent = user.name;
+    meta.className = "user-meta";
+    meta.textContent = user.isOnline
+      ? "Online now"
+      : (user.lastMessagePreview
+        ? `Offline - ${user.lastMessagePreview}`
+        : (user.username || "Directory user"));
+
+    textWrap.append(name, meta);
+    userButton.append(avatar, textWrap);
+    container.append(userButton);
+  });
+}
+
+function setOnlineUsers(users) {
+  onlineUsers = Array.isArray(users) ? users : [];
+  renderUserDirectory();
+}
+
+async function loadRecentConversations() {
+  const account = getSignedInAccount();
+  if (!account) {
+    recentConversations = [];
+    renderUserDirectory();
+    return;
+  }
+
+  try {
+    const accessToken = await getApiAccessToken();
+    const response = await fetch("/api/conversations", {
+      headers: { "X-ZPlay-Authorization": `Bearer ${accessToken}` }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Conversation loading failed (${response.status}).`);
+    }
+
+    recentConversations = await response.json();
+    renderUserDirectory();
+  } catch (error) {
+    console.error("Failed to load recent conversations:", error);
+  }
+}
+
+async function loadDirectoryUsers(searchText = "") {
+  const account = getSignedInAccount();
+  if (!account) {
+    knownUsers = [];
+    renderUserDirectory();
+    return;
+  }
+
+  const requestId = ++directorySearchRequestId;
+
+  try {
+    const accessToken = await getApiAccessToken();
+    const url = searchText
+      ? `/api/users?search=${encodeURIComponent(searchText)}`
+      : "/api/users";
+    const response = await fetch(url, {
+      headers: { "X-ZPlay-Authorization": `Bearer ${accessToken}` }
+    });
+
+    if (!response.ok) {
+      throw new Error(`User directory loading failed (${response.status}).`);
+    }
+
+    const result = await response.json();
+    if (requestId !== directorySearchRequestId) return;
+    knownUsers = Array.isArray(result.users) ? result.users : [];
+    renderUserDirectory();
+  } catch (error) {
+    console.error("Failed to load directory users:", error);
+  }
+}
+
+function scheduleDirectorySearch() {
+  const input = document.getElementById("user-search-input");
+  const searchText = input?.value.trim() || "";
+
+  if (directorySearchTimer) {
+    clearTimeout(directorySearchTimer);
+  }
+
+  directorySearchTimer = setTimeout(() => {
+    loadDirectoryUsers(searchText);
+  }, 250);
 }
 
 function addChatMessage(message, type) {
@@ -111,8 +320,9 @@ async function loadChatMessages(requestId) {
     const messages = await response.json();
     if (requestId !== chatRequestId || !selectedChatUser) return;
 
-    const currentUserId = getSignedInAccount()?.localAccountId;
+    const currentUserId = getCurrentUserId();
     const messageContainer = document.getElementById("chat-messages");
+    if (!messageContainer) return;
     messageContainer.replaceChildren();
     messages.forEach((message) => {
       const type = message.senderId === currentUserId ? "outgoing" : "incoming";
@@ -141,7 +351,11 @@ async function sendChatMessage(message) {
         "Content-Type": "application/json",
         "X-ZPlay-Authorization": `Bearer ${accessToken}`
       },
-      body: JSON.stringify({ recipientId, body: message })
+      body: JSON.stringify({
+        recipientId,
+        recipientName: selectedChatUser.name,
+        body: message
+      })
     });
 
     const result = await response.json();
@@ -153,6 +367,8 @@ async function sendChatMessage(message) {
       addChatMessage(result.body, "outgoing");
       document.getElementById("chat-input").value = "";
     }
+
+    await loadRecentConversations();
   } catch (error) {
     console.error("Failed to send message:", error);
     addChatMessage("Your message could not be sent.", "system");
@@ -166,7 +382,7 @@ async function signIn() {
     const result = await msalInstance.loginPopup({ scopes: apiScopes });
     msalInstance.setActiveAccount(result.account);
     renderAuthState(result.account, "You are signed in.");
-    sendHeartbeat();
+    await Promise.all([loadDirectoryUsers(), loadRecentConversations(), sendHeartbeat()]);
   } catch (error) {
     console.error("Sign-in failed:", error);
     renderAuthState(null, "Sign-in was cancelled or could not be completed.");
@@ -181,7 +397,6 @@ async function signOut() {
   try {
     await msalInstance.logoutPopup({ account: getSignedInAccount() });
     renderAuthState(null, "Goodbye. You have been signed out.");
-    sendHeartbeat();
   } catch (error) {
     console.error("Sign-out failed:", error);
     renderAuthState(getSignedInAccount(), "Sign-out could not be completed.");
@@ -192,6 +407,14 @@ window.addEventListener("DOMContentLoaded", () => {
   const account = getSignedInAccount();
   if (account) msalInstance.setActiveAccount(account);
   renderAuthState(account);
+  if (account) {
+    loadDirectoryUsers();
+    loadRecentConversations();
+  }
+
+  document.getElementById("user-search-input")?.addEventListener("input", () => {
+    scheduleDirectorySearch();
+  });
 
   document.getElementById("chat-form").addEventListener("submit", async (event) => {
     event.preventDefault();

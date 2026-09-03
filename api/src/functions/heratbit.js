@@ -1,6 +1,7 @@
 const { app } = require('@azure/functions');
 const { TableClient } = require('@azure/data-tables');
 const { authenticateRequest } = require("../lib/authenticate");
+const { getUsersTableClient, upsertKnownUser } = require('../lib/users');
 
 app.http('heartbeat', {
     methods: ['POST'],
@@ -20,6 +21,8 @@ app.http('heartbeat', {
                 'OnlineUsers'
             );
             await tableClient.createTable();
+            const usersTableClient = getUsersTableClient();
+            await usersTableClient.createTable();
 
             await tableClient.upsertEntity({
                 partitionKey: "Presence",
@@ -28,6 +31,7 @@ app.http('heartbeat', {
                 AvatarUrl: avatar,
                 LastSeen: now.toString()
             }, "Merge");
+            await upsertKnownUser(usersTableClient, authenticatedUser, 'presence');
 
             const oneMinuteAgo = now - 60000;
             const activeUsers = [];

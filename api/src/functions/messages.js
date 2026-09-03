@@ -1,26 +1,14 @@
 const { randomUUID } = require('crypto');
 const { app } = require('@azure/functions');
-const { TableClient } = require('@azure/data-tables');
 const { authenticateRequest } = require('../lib/authenticate');
-
-const tableName = 'Messages';
-const maximumBodyLength = 1000;
-
-function isValidUserId(userId) {
-	return typeof userId === 'string'
-	&& /^[A-Za-z0-9._-]{1,128}$/.test(userId);
-}
-
-function getConversationId(firstUserId, secondUserId) {
-	return [firstUserId, secondUserId].sort().join('|');
-}
-
-function getMessagesTableClient() {
-	return TableClient.fromConnectionString(
-		process.env.StorageConnection,
-		tableName
-	);
-}
+const {
+	getConversationId,
+	getMessagesTableClient,
+	isValidUserId,
+	maximumBodyLength,
+	normalizeDisplayName
+} = require('../lib/chat');
+const { requireAllowedUser } = require('../lib/groupAccess');
 
 function messageResponse(message) {
 	return {
@@ -44,6 +32,7 @@ app.http('messages', {
 			if (request.method === 'POST') {
 				const requestBody = await request.json();
 				const recipientId = requestBody?.recipientId;
+				const recipientName = normalizeDisplayName(requestBody?.recipientName, recipientId);
 				const body = typeof requestBody?.body === 'string'
 					? requestBody.body.trim()
 					: '';
@@ -62,6 +51,12 @@ app.http('messages', {
 					};
 				}
 
+				await requireAllowedUser(
+					recipientId,
+					null,
+					'The selected recipient is not a member of the required Entra group.'
+				);
+
 				if (!body || body.length > maximumBodyLength) {
 					return {
 						status: 400,
@@ -76,7 +71,9 @@ app.http('messages', {
 					partitionKey: getConversationId(authenticatedUser.id, recipientId),
 					rowKey: `${Date.now().toString().padStart(13, '0')}-${randomUUID()}`,
 					SenderId: authenticatedUser.id,
+					SenderName: authenticatedUser.name,
 					RecipientId: recipientId,
+					RecipientName: recipientName,
 					Body: body,
 					CreatedAt: createdAt
 				};
@@ -106,6 +103,12 @@ app.http('messages', {
 					jsonBody: { error: 'The after query parameter must be a timestamp.' }
 				};
 			}
+
+			await requireAllowedUser(
+				recipientId,
+				null,
+				'The selected recipient is not a member of the required Entra group.'
+			);
 
 			const conversationId = getConversationId(authenticatedUser.id, recipientId);
 			const storedMessages = [];

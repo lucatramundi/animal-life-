@@ -4,9 +4,10 @@ async function sendHeartbeat() {
     const account = getSignedInAccount();
     if (!account) return;
     const requestNumber = ++heartbeatRequestNumber;
+    const identitySeed = getCurrentUserId() || account.username || account.localAccountId;
 
     // Generate the avatar URL for the user's presence icon
-    const iconUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(account.localAccountId)}`;
+    const iconUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(identitySeed)}`;
 
     try {
         const accessToken = await getApiAccessToken();
@@ -29,35 +30,11 @@ async function sendHeartbeat() {
 
         const onlineUsers = await response.json();
         if (requestNumber !== heartbeatRequestNumber) return;
-        updateOnlineUsersUI(onlineUsers);
+        setOnlineUsers(onlineUsers);
+        await loadRecentConversations();
     } catch (err) {
         console.error("Failed to fetch online presence:", err);
     }
-}
-
-function updateOnlineUsersUI(users) {
-    const container = document.getElementById('online-users-list');
-    if (!container) return;
-    container.replaceChildren();
-
-    users.forEach(user => {
-        const userButton = document.createElement('button');
-        const avatar = document.createElement('img');
-        const name = document.createElement('span');
-
-        userButton.type = 'button';
-        userButton.className = 'user-badge';
-        userButton.dataset.userId = user.id;
-        userButton.dataset.userName = user.name;
-        userButton.addEventListener('click', () => selectChatUser(user.id, user.name));
-        avatar.src = user.avatar;
-        avatar.width = 40;
-        avatar.height = 40;
-        avatar.alt = '';
-        name.textContent = user.name;
-        userButton.append(avatar, name);
-        container.append(userButton);
-    });
 }
 
 window.addEventListener('DOMContentLoaded', () => {

@@ -15,6 +15,7 @@ MSAL.js signs the user in on the client, but Azure Functions must validate an En
 - Send that token in `Authorization: Bearer <token>` on presence and messaging requests.
 - Validate the token in Azure Functions and use its `oid` claim as the stable user ID.
 - Use `name` only as a display field, not as an identity or storage key.
+- Optionally configure `ENTRA_ALLOWED_GROUP_ID` so only members of one Entra group can use the experience.
 
 ## Presence Changes
 
@@ -44,6 +45,19 @@ Each message has:
 
 Use Entra object IDs, not names, as keys because names are mutable and not guaranteed to be unique.
 
+Create a `Users` table as a cache of known directory users.
+
+Each user row stores:
+
+| Field | Purpose |
+| --- | --- |
+| `PartitionKey` | Static directory partition, such as `Directory`. |
+| `RowKey` | Entra object ID of the user. |
+| `DisplayName` | Best-known display name for UI rendering. |
+| `UserPrincipalName` | Sign-in identifier used for search and disambiguation. |
+| `Source` | Where the row came from, such as presence, sign-in, or Graph sync. |
+| `UpdatedAt` | UTC timestamp of the latest refresh. |
+
 ## Function Endpoints
 
 ### `POST /api/messages`
@@ -63,6 +77,14 @@ The Function gets the sender from the validated token, validates the recipient I
 
 The Function validates that the caller is one of the two conversation participants. It returns only messages for that conversation, oldest first. The optional `after` value lets the client fetch only messages newer than its last refresh.
 
+### `GET /api/conversations`
+
+This returns the caller's recent conversation partners, newest conversation first. The response is used to keep previously contacted users selectable even when they are currently offline.
+
+### `GET /api/users?search=<text>`
+
+This returns known directory users from the `Users` table and, when Microsoft Graph application credentials are configured, refreshes the cache from Graph so the caller can search for users they have never messaged before. When `ENTRA_ALLOWED_GROUP_ID` is configured, only users who belong to that group are returned.
+
 ### Optional: `POST /api/messages/read`
 
 This records a `ReadAt` timestamp for received messages.
@@ -71,11 +93,14 @@ This records a `ReadAt` timestamp for received messages.
 
 1. On sign-in, acquire an Entra access token for the API scope.
 2. Include the bearer token in every heartbeat and chat request.
-3. Populate the online-player list with the secure presence endpoint.
-4. When the player selects a user, request that conversation with `GET /api/messages`.
-5. Replace the current in-browser-only send behavior with `POST /api/messages`.
-6. Render messages as incoming or outgoing by comparing `SenderId` with the current user's Entra object ID.
-7. Poll the selected conversation every few seconds initially. This keeps the implementation simple and inexpensive for a small app.
+3. Reject any signed-in caller who is not a member of the configured Entra group.
+4. Load a searchable recipient list from `GET /api/users`.
+5. Combine that directory data with the secure presence endpoint and `GET /api/conversations`.
+6. Keep online users at the top, recent offline conversations next, and other known directory users after that.
+7. When the player selects a user, request that conversation with `GET /api/messages`.
+8. Replace the current in-browser-only send behavior with `POST /api/messages`.
+9. Render messages as incoming or outgoing by comparing `SenderId` with the current user's Entra object ID.
+10. Poll the selected conversation every few seconds initially. This keeps the implementation simple and inexpensive for a small app.
 
 ## Cost and Retention
 
@@ -89,6 +114,8 @@ Azure Table Storage is an appropriate low-cost store for a small chat applicatio
 
 - Configure `StorageConnection` as an Azure Function App application setting, never in source control.
 - Keep the client secret-free. A single-page app should never contain a client secret.
+- If group restriction is enabled, configure `ENTRA_ALLOWED_GROUP_ID` with the Entra object ID of the allowed group.
+- If server-side Graph lookup is enabled, configure `ENTRA_GRAPH_CLIENT_ID`, `ENTRA_GRAPH_CLIENT_SECRET`, and grant the app Microsoft Graph application permissions needed for the scenario, such as `GroupMember.Read.All` and `User.Read.All`, with admin consent.
 - Restrict the deployed Content Security Policy to the necessary Entra, Graph if used, and same-origin API connections.
 - Keep redirect URIs in the Entra app registration aligned with the MSAL `redirectUri` value.
 
