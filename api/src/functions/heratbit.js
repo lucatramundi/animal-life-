@@ -29,7 +29,7 @@ app.http('heartbeat', {
                 LastSeen: now.toString()
             }, "Merge");
 
-            const thirtySecondsAgo = now - 30000;
+            const oneMinuteAgo = now - 60000;
             const activeUsers = [];
 
             const rows = tableClient.listEntities({
@@ -38,7 +38,7 @@ app.http('heartbeat', {
 
             for await (const user of rows) {
                 const lastSeenTime = parseInt(user.LastSeen || 0);
-                if (lastSeenTime > thirtySecondsAgo && user.rowKey !== authenticatedUser.id) {
+                if (lastSeenTime > oneMinuteAgo && user.rowKey !== authenticatedUser.id) {
                     activeUsers.push({
                         id: user.rowKey,
                         name: user.DisplayName,

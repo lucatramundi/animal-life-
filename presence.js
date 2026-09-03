@@ -1,6 +1,9 @@
+let heartbeatRequestNumber = 0;
+
 async function sendHeartbeat() {
     const account = getSignedInAccount();
     if (!account) return;
+    const requestNumber = ++heartbeatRequestNumber;
 
     // Generate the avatar URL for the user's presence icon
     const iconUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(account.localAccountId)}`;
@@ -25,6 +28,7 @@ async function sendHeartbeat() {
         }
 
         const onlineUsers = await response.json();
+        if (requestNumber !== heartbeatRequestNumber) return;
         updateOnlineUsersUI(onlineUsers);
     } catch (err) {
         console.error("Failed to fetch online presence:", err);
