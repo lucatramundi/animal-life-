@@ -64,6 +64,8 @@ body:has(.zplay-landing) {
     .zplay-landing { grid-template-columns: 1fr; gap: 26px; padding: 40px 24px; }.zplay-intro h1 { font-size: 58px; }.zplay-tagline { font-size: 18px; }.portal-scene { height: 210px; margin-top: 20px; }.island { transform: translateX(-50%) scale(0.78); }.auth-panel { padding: 28px 22px; }.community-area { grid-column: auto; grid-template-columns: 1fr; }.community-panel { min-height: 0; }.online-users-list { max-height: 230px; }.chat-messages { min-height: 180px; }
 }
 
+.chat-message-read-status { color: #c62828; font-size: 12px; font-weight: 700; min-width: 2em; }.chat-icon-button { width: 26px; height: 26px; display: inline-grid; place-items: center; padding: 0; font-size: 15px; line-height: 1; }
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

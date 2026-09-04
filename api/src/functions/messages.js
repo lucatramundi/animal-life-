@@ -27,6 +27,7 @@ function messageResponse(message, currentUserId) {
 		createdAt: message.CreatedAt,
 		updatedAt: message.UpdatedAt || null,
 		deletedAt: message.DeletedAt || null,
+		readAt: message.ReadAt || null,
 		isEdited: !deleted && typeof message.UpdatedAt === 'string' && message.UpdatedAt !== message.CreatedAt,
 		isDeleted: deleted,
 		canEdit: canMutateMessage(message, currentUserId),

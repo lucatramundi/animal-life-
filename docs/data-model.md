@@ -39,6 +39,7 @@ This table is a cache, not the authoritative directory.
 | `RecipientName` | Recipient display name at creation time |
 | `Body` | Validated message text |
 | `CreatedAt` | UTC ISO timestamp |
+| `ReadAt` | UTC ISO timestamp when the recipient opened the conversation; absent for unread messages |
 
 ## Conversation Keys
 
