@@ -55,6 +55,7 @@ Each returned message includes:
 - `createdAt`
 - `updatedAt`
 - `deletedAt`
+- `readAt`
 - `isEdited`
 - `isDeleted`
 - `canEdit`
@@ -83,6 +84,20 @@ Validation includes:
 - Body does not exceed the configured maximum length.
 
 The response contains the stored message ID, sender, recipient, body, creation time, and message lifecycle flags.
+
+## `POST /api/messages/read`
+
+Marks unread messages in a conversation as read by the authenticated user.
+
+Request body:
+
+```json
+{
+  "userId": "conversation-partner-object-id"
+}
+```
+
+The endpoint only updates messages addressed to the authenticated user. It returns `204` when the read receipt update succeeds.
 
 ## `PATCH /api/messages`
 

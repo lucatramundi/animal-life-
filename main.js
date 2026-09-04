@@ -15,6 +15,9 @@ const apiScopes = [
 
 let selectedChatUser = null;
 let chatPollTimer = null;
+let chatScrollResumeTimer = null;
+let chatRefreshPaused = false;
+let suppressChatScrollPause = false;
 let chatRequestId = 0;
 let onlineUsers = [];
 let recentConversations = [];
@@ -95,7 +98,11 @@ async function selectChatUser(id, name) {
   await loadChatMessages(requestId);
   if (selectedChatUser?.id !== id || requestId !== chatRequestId) return;
 
-  chatPollTimer = setInterval(() => loadChatMessages(requestId), 5000);
+  chatPollTimer = setInterval(() => {
+    if (!chatRefreshPaused) {
+      loadChatMessages(requestId);
+    }
+  }, 5000);
 }
 
 function getFallbackAvatarUrl(userId) {
@@ -326,11 +333,17 @@ function buildMessageMeta(message) {
   return "";
 }
 
+function buildMessageReadStatus(message, currentUserId) {
+  if (message.senderId !== currentUserId || message.isDeleted) return "";
+  return message.readAt ? "✓✓" : "";
+}
+
 function renderChatMessage(message, currentUserId) {
   const messageElement = document.createElement("article");
   const bodyElement = document.createElement("div");
   const footerElement = document.createElement("div");
   const metaElement = document.createElement("span");
+  const readStatusElement = document.createElement("span");
   const actionsElement = document.createElement("div");
   const isOutgoing = message.senderId === currentUserId;
   const isEditing = editingMessageId === message.id;
@@ -344,6 +357,7 @@ function renderChatMessage(message, currentUserId) {
   bodyElement.className = "chat-message-body";
   footerElement.className = "chat-message-footer";
   metaElement.className = "chat-message-meta";
+  readStatusElement.className = "chat-message-read-status";
 
   if (isEditing) {
     const editForm = document.createElement("form");
@@ -362,13 +376,17 @@ function renderChatMessage(message, currentUserId) {
     });
 
     saveButton.type = "submit";
-    saveButton.className = "chat-action-button primary";
-    saveButton.textContent = "Save";
+    saveButton.className = "chat-action-button chat-icon-button primary";
+    saveButton.textContent = "💾";
+    saveButton.setAttribute("aria-label", "Save message");
+    saveButton.title = "Save message";
     saveButton.disabled = isPending;
 
     cancelButton.type = "button";
-    cancelButton.className = "chat-action-button";
-    cancelButton.textContent = "Cancel";
+    cancelButton.className = "chat-action-button chat-icon-button";
+    cancelButton.textContent = "✕";
+    cancelButton.setAttribute("aria-label", "Cancel editing");
+    cancelButton.title = "Cancel editing";
     cancelButton.disabled = isPending;
     cancelButton.addEventListener("click", () => {
       cancelEditingMessage();
@@ -386,7 +404,8 @@ function renderChatMessage(message, currentUserId) {
   }
 
   metaElement.textContent = buildMessageMeta(message);
-  footerElement.append(metaElement);
+  readStatusElement.textContent = buildMessageReadStatus(message, currentUserId);
+  footerElement.append(metaElement, readStatusElement);
 
   if (isOutgoing && !message.isDeleted) {
     actionsElement.className = "chat-message-actions";
@@ -394,8 +413,10 @@ function renderChatMessage(message, currentUserId) {
     if (message.canEdit) {
       const editButton = document.createElement("button");
       editButton.type = "button";
-      editButton.className = "chat-action-button";
-      editButton.textContent = "Edit";
+      editButton.className = "chat-action-button chat-icon-button";
+      editButton.textContent = "✎";
+      editButton.setAttribute("aria-label", "Edit message");
+      editButton.title = "Edit message";
       editButton.disabled = isPending;
       editButton.addEventListener("click", () => {
         startEditingMessage(message);
@@ -406,12 +427,12 @@ function renderChatMessage(message, currentUserId) {
     if (message.canDelete) {
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
-      deleteButton.className = "chat-action-button danger";
-      deleteButton.textContent = "Delete";
+      deleteButton.className = "chat-action-button chat-icon-button danger";
+      deleteButton.textContent = "🗑";
+      deleteButton.setAttribute("aria-label", "Delete message");
+      deleteButton.title = "Delete message";
       deleteButton.disabled = isPending;
       deleteButton.addEventListener("click", async () => {
-        const confirmed = window.confirm("Delete this delivered message for both participants?");
-        if (!confirmed) return;
         await deleteChatMessage(message.id);
       });
       actionsElement.append(deleteButton);
@@ -437,7 +458,25 @@ function renderConversationMessages() {
   currentConversationMessages.forEach((message) => {
     messageContainer.append(renderChatMessage(message, currentUserId));
   });
+  suppressChatScrollPause = true;
   messageContainer.scrollTop = messageContainer.scrollHeight;
+  window.requestAnimationFrame(() => {
+    suppressChatScrollPause = false;
+  });
+}
+
+function handleChatScroll() {
+  if (suppressChatScrollPause) return;
+
+  chatRefreshPaused = true;
+  if (chatScrollResumeTimer) {
+    clearTimeout(chatScrollResumeTimer);
+  }
+
+  chatScrollResumeTimer = setTimeout(() => {
+    chatRefreshPaused = false;
+    chatScrollResumeTimer = null;
+  }, 800);
 }
 
 function clearChat() {
@@ -446,6 +485,11 @@ function clearChat() {
     clearInterval(chatPollTimer);
     chatPollTimer = null;
   }
+  if (chatScrollResumeTimer) {
+    clearTimeout(chatScrollResumeTimer);
+    chatScrollResumeTimer = null;
+  }
+  chatRefreshPaused = false;
   selectedChatUser = null;
   currentConversationMessages = [];
   resetMessageEditing();
@@ -483,6 +527,7 @@ async function loadChatMessages(requestId) {
     const editedMessageStillExists = currentConversationMessages.some((message) =>
       message.id === editingMessageId && message.canEdit && !message.isDeleted
     );
+    const preserveActiveEdit = Boolean(editingMessageId && editedMessageStillExists);
     if (!editedMessageStillExists) {
       editingMessageId = null;
       editingMessageDraft = "";
@@ -490,13 +535,38 @@ async function loadChatMessages(requestId) {
     if (!pendingMessageActionId || !currentConversationMessages.some((message) => message.id === pendingMessageActionId)) {
       pendingMessageActionId = null;
     }
-    renderConversationMessages();
+    if (!preserveActiveEdit) {
+      renderConversationMessages();
+    }
+    await markConversationRead(requestId);
   } catch (error) {
     if (requestId === chatRequestId) {
       console.error("Failed to load conversation:", error);
       currentConversationMessages = [];
       addChatMessage("Unable to load this conversation.", "system");
     }
+  }
+}
+
+async function markConversationRead(requestId) {
+  if (!selectedChatUser || requestId !== chatRequestId) return;
+
+  try {
+    const accessToken = await getApiAccessToken();
+    const response = await fetch("/api/messages/read", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-ZPlay-Authorization": `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ userId: selectedChatUser.id })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Read receipt update failed (${response.status}).`);
+    }
+  } catch (error) {
+    console.error("Failed to update read receipts:", error);
   }
 }
 
@@ -664,6 +734,8 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("user-search-input")?.addEventListener("input", () => {
     scheduleDirectorySearch();
   });
+
+  document.getElementById("chat-messages")?.addEventListener("scroll", handleChatScroll, { passive: true });
 
   document.getElementById("chat-form").addEventListener("submit", async (event) => {
     event.preventDefault();
