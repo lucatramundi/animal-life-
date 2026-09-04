@@ -335,7 +335,7 @@ function buildMessageMeta(message) {
 
 function buildMessageReadStatus(message, currentUserId) {
   if (message.senderId !== currentUserId || message.isDeleted) return "";
-  return message.readAt ? "✓✓" : "";
+  return message.readAt ? String.fromCharCode(0x2713) : "";
 }
 
 function renderChatMessage(message, currentUserId) {
@@ -404,7 +404,14 @@ function renderChatMessage(message, currentUserId) {
   }
 
   metaElement.textContent = buildMessageMeta(message);
-  readStatusElement.textContent = buildMessageReadStatus(message, currentUserId);
+  const readStatus = buildMessageReadStatus(message, currentUserId);
+  readStatusElement.textContent = readStatus;
+  readStatusElement.hidden = !readStatus;
+  if (readStatus) {
+    readStatusElement.classList.add("read");
+    readStatusElement.setAttribute("aria-label", "Message read");
+    readStatusElement.title = "Message read";
+  }
   footerElement.append(metaElement, readStatusElement);
 
   if (isOutgoing && !message.isDeleted) {
