@@ -193,7 +193,7 @@ function renderUserDirectory() {
     const meta = document.createElement("span");
 
     userButton.type = "button";
-    userButton.className = "user-badge";
+    userButton.className = `user-badge${user.isOnline ? " online" : ""}`;
     userButton.dataset.userId = user.id;
     userButton.dataset.userName = user.name;
     userButton.addEventListener("click", () => selectChatUser(user.id, user.name));
@@ -564,6 +564,18 @@ async function markConversationRead(requestId) {
 
     if (!response.ok) {
       throw new Error(`Read receipt update failed (${response.status}).`);
+    }
+
+    const result = response.status === 204 ? null : await response.json();
+    const readAt = result?.readAt;
+    const readMessageIds = Array.isArray(result?.messageIds) ? result.messageIds : [];
+    if (readAt && readMessageIds.length) {
+      currentConversationMessages = currentConversationMessages.map((message) =>
+        readMessageIds.includes(message.id) ? { ...message, readAt } : message
+      );
+      if (!editingMessageId) {
+        renderConversationMessages();
+      }
     }
   } catch (error) {
     console.error("Failed to update read receipts:", error);

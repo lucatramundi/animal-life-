@@ -97,7 +97,14 @@ Request body:
 }
 ```
 
-The endpoint only updates messages addressed to the authenticated user. It returns `204` when the read receipt update succeeds.
+The endpoint only updates messages addressed to the authenticated user. It returns `200` with the read timestamp and updated message IDs:
+
+```json
+{
+  "readAt": "2026-09-04T12:30:00.000Z",
+  "messageIds": ["1756991234567-550e8400-e29b-41d4-a716-446655440000"]
+}
+```
 
 ## `PATCH /api/messages`
 

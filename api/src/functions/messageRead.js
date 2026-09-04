@@ -34,6 +34,7 @@ app.http('messageRead', {
 			await tableClient.createTable();
 			const conversationId = getConversationId(authenticatedUser.id, conversationUserId);
 			const readAt = new Date().toISOString();
+			const messageIds = [];
 			const rows = tableClient.listEntities({
 				queryOptions: {
 					filter: `PartitionKey eq '${conversationId}'`
@@ -50,9 +51,14 @@ app.http('messageRead', {
 					rowKey: message.rowKey,
 					ReadAt: readAt
 				}, 'Merge');
+				messageIds.push(message.rowKey);
 			}
 
-			return { status: 204 };
+			return {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+				jsonBody: { readAt, messageIds }
+			};
 		} catch (err) {
 			context.error('Message read error:', err);
 			return {
