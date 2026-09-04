@@ -1,7 +1,11 @@
 const { app } = require('@azure/functions');
 const { authenticateRequest } = require('../lib/authenticate');
 const { filterUsersByAllowedGroup } = require('../lib/groupAccess');
-const { getMessagesTableClient, normalizeDisplayName } = require('../lib/chat');
+const {
+	getMessageActivityAt,
+	getMessagesTableClient,
+	normalizeDisplayName
+} = require('../lib/chat');
 
 function getConversationPartner(message, currentUserId) {
 	const senderIsCurrentUser = message.SenderId === currentUserId;
@@ -40,15 +44,16 @@ app.http('conversations', {
 					continue;
 				}
 
+				const lastActivityAt = getMessageActivityAt(message);
 				const existingSummary = summariesByPartnerId.get(partner.id);
-				if (existingSummary && existingSummary.lastMessageAt >= message.CreatedAt) {
+				if (existingSummary && existingSummary.lastMessageAt >= lastActivityAt) {
 					continue;
 				}
 
 				summariesByPartnerId.set(partner.id, {
 					id: partner.id,
 					name: partner.name,
-					lastMessageAt: message.CreatedAt,
+					lastMessageAt: lastActivityAt,
 					lastMessagePreview: message.Body
 				});
 			}

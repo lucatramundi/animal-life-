@@ -46,6 +46,20 @@ after=<unix-milliseconds>
 
 Messages are returned oldest first. The API validates that the caller participates in the conversation.
 
+Each returned message includes:
+
+- `id`
+- `senderId`
+- `recipientId`
+- `body`
+- `createdAt`
+- `updatedAt`
+- `deletedAt`
+- `isEdited`
+- `isDeleted`
+- `canEdit`
+- `canDelete`
+
 ## `POST /api/messages`
 
 Stores a message for the authenticated caller.
@@ -68,7 +82,47 @@ Validation includes:
 - Body is trimmed and non-empty.
 - Body does not exceed the configured maximum length.
 
-The response contains the stored message ID, sender, recipient, body, and creation time.
+The response contains the stored message ID, sender, recipient, body, creation time, and message lifecycle flags.
+
+## `PATCH /api/messages`
+
+Edits a delivered message previously sent by the authenticated caller.
+
+Request body:
+
+```json
+{
+  "userId": "conversation-partner-object-id",
+  "messageId": "1756991234567-550e8400-e29b-41d4-a716-446655440000",
+  "body": "Updated text"
+}
+```
+
+Rules:
+
+- Only the original sender can edit a message.
+- The message must belong to the selected conversation.
+- Deleted messages cannot be edited.
+- The edited body is trimmed, required, and must remain within the configured length limit.
+
+## `DELETE /api/messages`
+
+Deletes a delivered message previously sent by the authenticated caller.
+
+Request body:
+
+```json
+{
+  "userId": "conversation-partner-object-id",
+  "messageId": "1756991234567-550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+Rules:
+
+- Only the original sender can delete a message.
+- The message remains visible in the conversation as a deleted placeholder for both participants.
+- Deleted messages are no longer editable or deletable from the UI.
 
 ## Timer: `cleanupStorage`
 

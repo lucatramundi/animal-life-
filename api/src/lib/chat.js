@@ -3,6 +3,7 @@ const { TableClient } = require('@azure/data-tables');
 const messagesTableName = 'Messages';
 const maximumBodyLength = 1000;
 const maximumDisplayNameLength = 120;
+const deletedMessageBody = 'This message was deleted.';
 
 function isValidUserId(userId) {
 	return typeof userId === 'string'
@@ -20,6 +21,11 @@ function getMessagesTableClient() {
 	);
 }
 
+function isValidMessageId(messageId) {
+	return typeof messageId === 'string'
+		&& /^\d{13}-[0-9a-fA-F-]{36}$/.test(messageId);
+}
+
 function normalizeDisplayName(value, fallbackValue) {
 	if (typeof value !== 'string') {
 		return fallbackValue;
@@ -33,10 +39,36 @@ function normalizeDisplayName(value, fallbackValue) {
 	return trimmedValue.slice(0, maximumDisplayNameLength);
 }
 
+function normalizeMessageBody(value) {
+	if (typeof value !== 'string') {
+		return '';
+	}
+
+	return value.trim();
+}
+
+function isDeletedMessage(message) {
+	return typeof message?.DeletedAt === 'string' && Boolean(message.DeletedAt);
+}
+
+function getMessageActivityAt(message) {
+	return message?.DeletedAt || message?.UpdatedAt || message?.CreatedAt || '';
+}
+
+function canMutateMessage(message, currentUserId) {
+	return message?.SenderId === currentUserId && !isDeletedMessage(message);
+}
+
 module.exports = {
+	canMutateMessage,
+	deletedMessageBody,
+	getMessageActivityAt,
 	getConversationId,
 	getMessagesTableClient,
+	isDeletedMessage,
+	isValidMessageId,
 	isValidUserId,
 	maximumBodyLength,
-	normalizeDisplayName
+	normalizeDisplayName,
+	normalizeMessageBody
 };
