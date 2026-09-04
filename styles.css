@@ -64,7 +64,7 @@ body:has(.zplay-landing) {
     .zplay-landing { grid-template-columns: 1fr; gap: 26px; padding: 40px 24px; }.zplay-intro h1 { font-size: 58px; }.zplay-tagline { font-size: 18px; }.portal-scene { height: 210px; margin-top: 20px; }.island { transform: translateX(-50%) scale(0.78); }.auth-panel { padding: 28px 22px; }.community-area { grid-column: auto; grid-template-columns: 1fr; }.community-panel { min-height: 0; }.online-users-list { max-height: 230px; }.chat-messages { min-height: 180px; }
 }
 
-.chat-message-read-status { color: #16803c; font-size: 12px; font-weight: 700; min-width: 2em; }.chat-icon-button { width: 26px; height: 26px; display: inline-grid; place-items: center; padding: 0; font-size: 15px; line-height: 1; }
+.chat-message-read-status { color: #16803c; font-size: 15px; font-weight: 800; min-width: 1em; line-height: 1; }.chat-message-read-status.read { display: inline-block; color: #16803c; text-shadow: 0 0 5px rgba(22, 128, 60, 0.35); }.chat-icon-button { width: 26px; height: 26px; display: inline-grid; place-items: center; padding: 0; font-size: 15px; line-height: 1; }
 
 @keyframes online-avatar-pulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(80, 220, 133, 0.2); }
