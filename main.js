@@ -36,6 +36,18 @@ function getCurrentUserId() {
   return account?.localAccountId || null;
 }
 
+function getAccountDisplayName(account) {
+  if (typeof account?.name === "string" && account.name.trim()) {
+    return account.name.trim();
+  }
+
+  if (typeof account?.username === "string" && account.username.trim()) {
+    return account.username.trim().split("@")[0];
+  }
+
+  return "player";
+}
+
 function renderAuthState(account, message) {
   const loginButton = document.getElementById("login-btn");
   const profile = document.getElementById("user-profile");
@@ -46,7 +58,7 @@ function renderAuthState(account, message) {
   if (!loginButton || !profile || !userName || !authMessage || !communityArea) return;
 
   if (account) {
-    userName.textContent = account.name || account.username;
+    userName.textContent = getAccountDisplayName(account);
     loginButton.hidden = true;
     profile.hidden = false;
     communityArea.hidden = false;
