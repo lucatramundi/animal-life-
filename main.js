@@ -21,6 +21,10 @@ let recentConversations = [];
 let knownUsers = [];
 let directorySearchRequestId = 0;
 let directorySearchTimer = null;
+let currentConversationMessages = [];
+let editingMessageId = null;
+let editingMessageDraft = "";
+let pendingMessageActionId = null;
 
 function getSignedInAccount() {
   return msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0] || null;
@@ -288,11 +292,152 @@ function addChatMessage(message, type) {
   const messages = document.getElementById("chat-messages");
   if (!messages) return;
 
-  const messageElement = document.createElement("p");
+  const messageElement = document.createElement("div");
   messageElement.className = `chat-message ${type}`;
   messageElement.textContent = message;
   messages.append(messageElement);
   messages.scrollTop = messages.scrollHeight;
+}
+
+function resetMessageEditing() {
+  editingMessageId = null;
+  editingMessageDraft = "";
+  pendingMessageActionId = null;
+}
+
+function startEditingMessage(message) {
+  if (!message?.canEdit || message.isDeleted) return;
+  editingMessageId = message.id;
+  editingMessageDraft = message.body;
+  pendingMessageActionId = null;
+  renderConversationMessages();
+}
+
+function cancelEditingMessage() {
+  editingMessageId = null;
+  editingMessageDraft = "";
+  pendingMessageActionId = null;
+  renderConversationMessages();
+}
+
+function buildMessageMeta(message) {
+  if (message.isDeleted) return "Deleted";
+  if (message.isEdited) return "Edited";
+  return "";
+}
+
+function renderChatMessage(message, currentUserId) {
+  const messageElement = document.createElement("article");
+  const bodyElement = document.createElement("div");
+  const footerElement = document.createElement("div");
+  const metaElement = document.createElement("span");
+  const actionsElement = document.createElement("div");
+  const isOutgoing = message.senderId === currentUserId;
+  const isEditing = editingMessageId === message.id;
+  const isPending = pendingMessageActionId === message.id;
+
+  messageElement.className = `chat-message ${isOutgoing ? "outgoing" : "incoming"}`;
+  if (message.isDeleted) {
+    messageElement.classList.add("deleted");
+  }
+
+  bodyElement.className = "chat-message-body";
+  footerElement.className = "chat-message-footer";
+  metaElement.className = "chat-message-meta";
+
+  if (isEditing) {
+    const editForm = document.createElement("form");
+    const editInput = document.createElement("input");
+    const saveButton = document.createElement("button");
+    const cancelButton = document.createElement("button");
+
+    editForm.className = "chat-edit-form";
+    editInput.className = "chat-edit-input";
+    editInput.type = "text";
+    editInput.maxLength = 280;
+    editInput.value = editingMessageDraft;
+    editInput.required = true;
+    editInput.addEventListener("input", (event) => {
+      editingMessageDraft = event.target.value;
+    });
+
+    saveButton.type = "submit";
+    saveButton.className = "chat-action-button primary";
+    saveButton.textContent = "Save";
+    saveButton.disabled = isPending;
+
+    cancelButton.type = "button";
+    cancelButton.className = "chat-action-button";
+    cancelButton.textContent = "Cancel";
+    cancelButton.disabled = isPending;
+    cancelButton.addEventListener("click", () => {
+      cancelEditingMessage();
+    });
+
+    editForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await updateChatMessage(message.id, editingMessageDraft);
+    });
+
+    editForm.append(editInput, saveButton, cancelButton);
+    bodyElement.append(editForm);
+  } else {
+    bodyElement.textContent = message.body;
+  }
+
+  metaElement.textContent = buildMessageMeta(message);
+  footerElement.append(metaElement);
+
+  if (isOutgoing && !message.isDeleted) {
+    actionsElement.className = "chat-message-actions";
+
+    if (message.canEdit) {
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.className = "chat-action-button";
+      editButton.textContent = "Edit";
+      editButton.disabled = isPending;
+      editButton.addEventListener("click", () => {
+        startEditingMessage(message);
+      });
+      actionsElement.append(editButton);
+    }
+
+    if (message.canDelete) {
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "chat-action-button danger";
+      deleteButton.textContent = "Delete";
+      deleteButton.disabled = isPending;
+      deleteButton.addEventListener("click", async () => {
+        const confirmed = window.confirm("Delete this delivered message for both participants?");
+        if (!confirmed) return;
+        await deleteChatMessage(message.id);
+      });
+      actionsElement.append(deleteButton);
+    }
+
+    footerElement.append(actionsElement);
+  }
+
+  messageElement.append(bodyElement, footerElement);
+  return messageElement;
+}
+
+function renderConversationMessages() {
+  const messageContainer = document.getElementById("chat-messages");
+  if (!messageContainer) return;
+
+  messageContainer.replaceChildren();
+  if (!currentConversationMessages.length) {
+    return;
+  }
+
+  const currentUserId = getCurrentUserId();
+  currentConversationMessages.forEach((message) => {
+    messageContainer.append(renderChatMessage(message, currentUserId));
+  });
+  messageContainer.scrollTop = messageContainer.scrollHeight;
 }
 
 function clearChat() {
@@ -302,6 +447,8 @@ function clearChat() {
     chatPollTimer = null;
   }
   selectedChatUser = null;
+  currentConversationMessages = [];
+  resetMessageEditing();
   const messages = document.getElementById("chat-messages");
   const chatHeading = document.getElementById("chat-heading");
   const chatInput = document.getElementById("chat-input");
@@ -332,17 +479,22 @@ async function loadChatMessages(requestId) {
     const messages = await response.json();
     if (requestId !== chatRequestId || !selectedChatUser) return;
 
-    const currentUserId = getCurrentUserId();
-    const messageContainer = document.getElementById("chat-messages");
-    if (!messageContainer) return;
-    messageContainer.replaceChildren();
-    messages.forEach((message) => {
-      const type = message.senderId === currentUserId ? "outgoing" : "incoming";
-      addChatMessage(message.body, type);
-    });
+    currentConversationMessages = Array.isArray(messages) ? messages : [];
+    const editedMessageStillExists = currentConversationMessages.some((message) =>
+      message.id === editingMessageId && message.canEdit && !message.isDeleted
+    );
+    if (!editedMessageStillExists) {
+      editingMessageId = null;
+      editingMessageDraft = "";
+    }
+    if (!pendingMessageActionId || !currentConversationMessages.some((message) => message.id === pendingMessageActionId)) {
+      pendingMessageActionId = null;
+    }
+    renderConversationMessages();
   } catch (error) {
     if (requestId === chatRequestId) {
       console.error("Failed to load conversation:", error);
+      currentConversationMessages = [];
       addChatMessage("Unable to load this conversation.", "system");
     }
   }
@@ -376,8 +528,8 @@ async function sendChatMessage(message) {
     }
 
     if (selectedChatUser?.id === recipientId) {
-      addChatMessage(result.body, "outgoing");
       document.getElementById("chat-input").value = "";
+      await loadChatMessages(chatRequestId);
     }
 
     await loadRecentConversations();
@@ -386,6 +538,91 @@ async function sendChatMessage(message) {
     addChatMessage("Your message could not be sent.", "system");
   } finally {
     if (selectedChatUser?.id === recipientId) sendButton.disabled = false;
+  }
+}
+
+async function updateChatMessage(messageId, nextBody) {
+  if (!selectedChatUser) return;
+
+  const trimmedBody = nextBody.trim();
+  if (!trimmedBody) {
+    addChatMessage("Edited messages cannot be empty.", "system");
+    return;
+  }
+
+  pendingMessageActionId = messageId;
+  renderConversationMessages();
+
+  try {
+    const accessToken = await getApiAccessToken();
+    const response = await fetch("/api/messages", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-ZPlay-Authorization": `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        userId: selectedChatUser.id,
+        messageId,
+        body: trimmedBody
+      })
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Message update failed (${response.status}).`);
+    }
+
+    editingMessageId = null;
+    editingMessageDraft = "";
+    pendingMessageActionId = null;
+    await loadChatMessages(chatRequestId);
+    await loadRecentConversations();
+  } catch (error) {
+    pendingMessageActionId = null;
+    console.error("Failed to update message:", error);
+    renderConversationMessages();
+    addChatMessage("Your message could not be edited.", "system");
+  }
+}
+
+async function deleteChatMessage(messageId) {
+  if (!selectedChatUser) return;
+
+  pendingMessageActionId = messageId;
+  if (editingMessageId === messageId) {
+    editingMessageId = null;
+    editingMessageDraft = "";
+  }
+  renderConversationMessages();
+
+  try {
+    const accessToken = await getApiAccessToken();
+    const response = await fetch("/api/messages", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "X-ZPlay-Authorization": `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        userId: selectedChatUser.id,
+        messageId
+      })
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Message deletion failed (${response.status}).`);
+    }
+
+    pendingMessageActionId = null;
+    await loadChatMessages(chatRequestId);
+    await loadRecentConversations();
+  } catch (error) {
+    pendingMessageActionId = null;
+    console.error("Failed to delete message:", error);
+    renderConversationMessages();
+    addChatMessage("Your message could not be deleted.", "system");
   }
 }
 

@@ -16,6 +16,9 @@
 - User B can read the A/B conversation.
 - User C cannot read the A/B conversation.
 - Messages survive a page refresh.
+- Senders can edit their own delivered messages.
+- Senders can delete their own delivered messages and both participants see a deleted placeholder.
+- Recipients cannot edit or delete messages they did not send.
 - Empty messages are rejected.
 - Oversized messages are rejected.
 - Self-messaging is rejected.
