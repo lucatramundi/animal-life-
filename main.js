@@ -28,6 +28,12 @@ let currentConversationMessages = [];
 let editingMessageId = null;
 let editingMessageDraft = "";
 let pendingMessageActionId = null;
+let isVoiceRecording = false;
+let activeVoiceRecorder = null;
+let activeVoiceStream = null;
+let recordedVoiceChunks = [];
+let voiceRecordingStartedAt = 0;
+let voiceRecordingTimer = null;
 
 function getSignedInAccount() {
   return msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0] || null;
@@ -90,6 +96,10 @@ async function selectChatUser(id, name) {
   document.getElementById("chat-heading").textContent = `Chat with ${name}`;
   document.getElementById("chat-input").disabled = false;
   document.querySelector(".send-button").disabled = false;
+  const voiceButton = document.getElementById("voice-record-button");
+  if (voiceButton) {
+    voiceButton.disabled = false;
+  }
   document.querySelectorAll(".user-badge").forEach((userButton) => {
     userButton.classList.toggle("selected", userButton.dataset.userId === id);
   });
@@ -338,6 +348,187 @@ function buildMessageReadStatus(message, currentUserId) {
   return message.readAt ? String.fromCharCode(0x2713) : "";
 }
 
+function updateVoiceRecordingButtonState() {
+  const voiceButton = document.getElementById("voice-record-button");
+  if (!voiceButton) return;
+
+  voiceButton.disabled = !selectedChatUser || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder;
+  voiceButton.textContent = isVoiceRecording ? "Stop" : "🎙️";
+  voiceButton.title = isVoiceRecording ? "Stop recording" : "Record voice note";
+  voiceButton.setAttribute("aria-pressed", String(isVoiceRecording));
+}
+
+function stopVoiceRecording(discard = false) {
+  if (voiceRecordingTimer) {
+    clearInterval(voiceRecordingTimer);
+    voiceRecordingTimer = null;
+  }
+
+  const recorder = activeVoiceRecorder;
+  activeVoiceRecorder = null;
+
+  if (recorder && recorder.state !== "inactive") {
+    const recordingStartedAt = voiceRecordingStartedAt;
+    const recordedBlob = new Blob(recordedVoiceChunks, { type: recorder.mimeType || "audio/webm" });
+    recorder.onstop = () => {
+      if (voiceStream) {
+        voiceStream.getTracks().forEach((track) => track.stop());
+        voiceStream = null;
+      }
+      isVoiceRecording = false;
+      recordedVoiceChunks = [];
+      voiceRecordingStartedAt = 0;
+      updateVoiceRecordingButtonState();
+
+      if (!discard && recordedBlob.size > 0) {
+        const durationSeconds = Math.min(60, Math.max(1, Math.round((Date.now() - recordingStartedAt) / 1000)));
+        sendVoiceMessage(recordedBlob, durationSeconds).catch((error) => {
+          console.error("Failed to send voice note:", error);
+          addChatMessage("Your voice message could not be sent.", "system");
+        });
+      }
+    };
+    recorder.stop();
+    return;
+  }
+
+  if (voiceStream) {
+    voiceStream.getTracks().forEach((track) => track.stop());
+    voiceStream = null;
+  }
+
+  isVoiceRecording = false;
+  recordedVoiceChunks = [];
+  voiceRecordingStartedAt = 0;
+  updateVoiceRecordingButtonState();
+}
+
+async function startVoiceRecording() {
+  if (!selectedChatUser) return;
+  if (isVoiceRecording) {
+    stopVoiceRecording(false);
+    return;
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    addChatMessage("Voice recording is not supported in this browser.", "system");
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    recordedVoiceChunks = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        recordedVoiceChunks.push(event.data);
+      }
+    };
+    recorder.onstop = () => {
+      const recordingStartedAt = voiceRecordingStartedAt;
+      const recordedBlob = new Blob(recordedVoiceChunks, { type: recorder.mimeType || "audio/webm" });
+      if (voiceStream) {
+        voiceStream.getTracks().forEach((track) => track.stop());
+        voiceStream = null;
+      }
+      activeVoiceRecorder = null;
+      isVoiceRecording = false;
+      recordedVoiceChunks = [];
+      voiceRecordingStartedAt = 0;
+      updateVoiceRecordingButtonState();
+
+      if (recordedBlob.size > 0) {
+        const durationSeconds = Math.min(60, Math.max(1, Math.round((Date.now() - recordingStartedAt) / 1000)));
+        sendVoiceMessage(recordedBlob, durationSeconds).catch((error) => {
+          console.error("Failed to send voice note:", error);
+          addChatMessage("Your voice message could not be sent.", "system");
+        });
+      }
+    };
+
+    activeVoiceRecorder = recorder;
+    voiceStream = stream;
+    isVoiceRecording = true;
+    voiceRecordingStartedAt = Date.now();
+    recorder.start();
+    updateVoiceRecordingButtonState();
+    voiceRecordingTimer = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - voiceRecordingStartedAt) / 1000);
+      const remainingSeconds = Math.max(0, 60 - elapsedSeconds);
+      const voiceButton = document.getElementById("voice-record-button");
+      if (voiceButton) {
+        voiceButton.textContent = `${remainingSeconds}s`;
+      }
+      if (elapsedSeconds >= 60) {
+        stopVoiceRecording(false);
+      }
+    }, 250);
+  } catch (error) {
+    console.error("Unable to access microphone:", error);
+    addChatMessage("Microphone access was denied. Please allow mic access to record a voice note.", "system");
+  }
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("The browser could not convert the audio clip to upload data."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function sendVoiceMessage(blob, durationSeconds) {
+  if (!selectedChatUser) return;
+
+  const recipientId = selectedChatUser.id;
+  const sendButton = document.querySelector(".send-button");
+  const voiceButton = document.getElementById("voice-record-button");
+  if (sendButton) sendButton.disabled = true;
+  if (voiceButton) voiceButton.disabled = true;
+
+  try {
+    const accessToken = await getApiAccessToken();
+    const dataUrl = await blobToDataUrl(blob);
+    const response = await fetch("/api/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-ZPlay-Authorization": `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        recipientId,
+        recipientName: selectedChatUser.name,
+        body: "Voice message",
+        voice: {
+          dataUrl,
+          mimeType: blob.type || "audio/webm",
+          durationSeconds: Math.min(60, Number(durationSeconds) || 1)
+        }
+      })
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || `Voice message sending failed (${response.status}).`);
+    }
+
+    if (selectedChatUser?.id === recipientId) {
+      await loadChatMessages(chatRequestId);
+    }
+    await loadRecentConversations();
+  } catch (error) {
+    console.error("Failed to send voice message:", error);
+    addChatMessage("Your voice message could not be sent.", "system");
+  } finally {
+    if (selectedChatUser?.id === recipientId) {
+      if (sendButton) sendButton.disabled = false;
+      if (voiceButton) voiceButton.disabled = false;
+    }
+    updateVoiceRecordingButtonState();
+  }
+}
+
 function renderChatMessage(message, currentUserId) {
   const messageElement = document.createElement("article");
   const bodyElement = document.createElement("div");
@@ -399,6 +590,22 @@ function renderChatMessage(message, currentUserId) {
 
     editForm.append(editInput, saveButton, cancelButton);
     bodyElement.append(editForm);
+  } else if (message.voiceUrl) {
+    const voiceMessage = document.createElement("div");
+    const caption = document.createElement("span");
+    const audio = document.createElement("audio");
+
+    voiceMessage.className = "chat-voice-message";
+    caption.className = "chat-voice-caption";
+    caption.textContent = message.voiceDurationSeconds ? `Voice note · ${message.voiceDurationSeconds}s` : "Voice note";
+    audio.controls = true;
+    audio.preload = "metadata";
+    audio.src = message.voiceUrl;
+    if (message.voiceMimeType) {
+      audio.type = message.voiceMimeType;
+    }
+    voiceMessage.append(caption, audio);
+    bodyElement.append(voiceMessage);
   } else {
     bodyElement.textContent = message.body;
   }
@@ -496,6 +703,7 @@ function clearChat() {
     clearTimeout(chatScrollResumeTimer);
     chatScrollResumeTimer = null;
   }
+  stopVoiceRecording(true);
   chatRefreshPaused = false;
   selectedChatUser = null;
   currentConversationMessages = [];
@@ -504,6 +712,7 @@ function clearChat() {
   const chatHeading = document.getElementById("chat-heading");
   const chatInput = document.getElementById("chat-input");
   const sendButton = document.querySelector(".send-button");
+  const voiceButton = document.getElementById("voice-record-button");
   if (messages) messages.replaceChildren();
   if (chatHeading) chatHeading.textContent = "Select someone to chat";
   if (chatInput) {
@@ -511,6 +720,7 @@ function clearChat() {
     chatInput.disabled = true;
   }
   if (sendButton) sendButton.disabled = true;
+  if (voiceButton) voiceButton.disabled = true;
 }
 
 async function loadChatMessages(requestId) {
@@ -755,6 +965,8 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("chat-messages")?.addEventListener("scroll", handleChatScroll, { passive: true });
+  document.getElementById("voice-record-button")?.addEventListener("click", startVoiceRecording);
+  updateVoiceRecordingButtonState();
 
   document.getElementById("chat-form").addEventListener("submit", async (event) => {
     event.preventDefault();
