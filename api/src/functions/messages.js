@@ -1,4 +1,10 @@
 const { randomUUID } = require('crypto');
+const {
+	BlobSASPermissions,
+	BlobServiceClient,
+	StorageSharedKeyCredential,
+	generateBlobSASQueryParameters
+} = require('@azure/storage-blob');
 const { app } = require('@azure/functions');
 const { authenticateRequest } = require('../lib/authenticate');
 const {
@@ -10,14 +16,123 @@ const {
 	isDeletedMessage,
 	isValidMessageId,
 	isValidUserId,
+	isValidVoiceRecording,
 	maximumBodyLength,
+	maximumVoiceDurationSeconds,
+	maximumVoiceMessageSizeBytes,
 	normalizeDisplayName,
 	normalizeMessageBody
 } = require('../lib/chat');
 const { requireAllowedUser } = require('../lib/groupAccess');
 
+function getStorageAccountSettings() {
+	const connectionString = process.env.StorageConnection;
+	if (!connectionString) {
+		throw new Error('StorageConnection is not configured.');
+	}
+	if (connectionString === 'UseDevelopmentStorage=true') {
+		return null;
+	}
+
+	const settings = {};
+	for (const part of connectionString.split(';')) {
+		if (!part || !part.includes('=')) {
+			continue;
+		}
+		const separatorIndex = part.indexOf('=');
+		settings[part.slice(0, separatorIndex)] = part.slice(separatorIndex + 1);
+	}
+
+	if (!settings.AccountName || !settings.AccountKey) {
+		throw new Error('StorageConnection is missing the Azure Storage account credentials.');
+	}
+
+	return settings;
+}
+
+function getAudioExtension(mimeType) {
+	const normalizedMimeType = String(mimeType || 'audio/webm').toLowerCase().split(';', 1)[0];
+	const extensionMap = {
+		'audio/webm': '.webm',
+		'audio/mp4': '.m4a',
+		'audio/mpeg': '.mp3',
+		'audio/ogg': '.ogg',
+		'audio/wav': '.wav',
+		'audio/aac': '.aac'
+	};
+
+	return extensionMap[normalizedMimeType] || '.bin';
+}
+
+function parseVoiceDataUrl(dataUrl) {
+	if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
+		return null;
+	}
+
+	const metadataEnd = dataUrl.indexOf(',');
+	if (metadataEnd === -1) {
+		return null;
+	}
+
+	const metadata = dataUrl.slice(5, metadataEnd);
+	const base64Payload = dataUrl.slice(metadataEnd + 1);
+	if (!base64Payload || !metadata.includes('audio/')) {
+		return null;
+	}
+
+	const mimeType = metadata.split(';', 1)[0].toLowerCase();
+	return { mimeType, payload: base64Payload };
+}
+
+async function storeVoiceMessage(voiceRecording) {
+	const { mimeType, payload } = parseVoiceDataUrl(voiceRecording.dataUrl || voiceRecording.base64 && `data:${voiceRecording.mimeType || 'audio/webm'};base64,${voiceRecording.base64}`) || {};
+	if (!mimeType || !payload) {
+		throw new Error('The uploaded voice message is not valid audio data.');
+	}
+
+	const audioData = Buffer.from(payload, 'base64');
+	if (audioData.length === 0 || audioData.length > maximumVoiceMessageSizeBytes) {
+		throw new Error(`Voice message size must be between 1 byte and ${maximumVoiceMessageSizeBytes} bytes.`);
+	}
+
+	const storageSettings = getStorageAccountSettings();
+	const serviceClient = BlobServiceClient.fromConnectionString(process.env.StorageConnection);
+	const containerClient = serviceClient.getContainerClient('voice-messages');
+	await containerClient.createIfNotExists({ access: 'blob' });
+	if (!storageSettings) {
+		await containerClient.setAccessPolicy('blob');
+	}
+
+	const blobName = `voice-${Date.now()}-${randomUUID()}${getAudioExtension(mimeType)}`;
+	const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+	await blockBlobClient.uploadData(audioData, {
+		blobHTTPHeaders: {
+			blobContentType: mimeType
+		}
+	});
+
+
+	const voiceUrl = storageSettings
+		? `${blockBlobClient.url}?${generateBlobSASQueryParameters({
+			containerName: containerClient.containerName,
+			blobName,
+			permissions: BlobSASPermissions.parse('r'),
+			startsOn: new Date(Date.now() - 60 * 1000),
+			expiresOn: new Date(Date.now() + 24 * 60 * 60 * 1000)
+		}, new StorageSharedKeyCredential(storageSettings.AccountName, storageSettings.AccountKey)).toString()}`
+		: blockBlobClient.url;
+
+	return {
+		voiceUrl,
+		voiceMimeType: mimeType,
+		voiceDurationSeconds: Number(voiceRecording.durationSeconds)
+	};
+}
+
 function messageResponse(message, currentUserId) {
 	const deleted = isDeletedMessage(message);
+	const canEdit = canMutateMessage(message, currentUserId) && !message.VoiceUrl;
+	const canDelete = canMutateMessage(message, currentUserId);
 
 	return {
 		id: message.rowKey,
@@ -28,10 +143,13 @@ function messageResponse(message, currentUserId) {
 		updatedAt: message.UpdatedAt || null,
 		deletedAt: message.DeletedAt || null,
 		readAt: message.ReadAt || null,
+		voiceUrl: message.VoiceUrl || null,
+		voiceMimeType: message.VoiceMimeType || null,
+		voiceDurationSeconds: message.VoiceDurationSeconds ? Number(message.VoiceDurationSeconds) : null,
 		isEdited: !deleted && typeof message.UpdatedAt === 'string' && message.UpdatedAt !== message.CreatedAt,
 		isDeleted: deleted,
-		canEdit: canMutateMessage(message, currentUserId),
-		canDelete: canMutateMessage(message, currentUserId)
+		canEdit,
+		canDelete
 	};
 }
 
@@ -82,6 +200,7 @@ app.http('messages', {
 				const recipientId = requestBody?.recipientId;
 				const recipientName = normalizeDisplayName(requestBody?.recipientName, recipientId);
 				const body = normalizeMessageBody(requestBody?.body);
+				const voiceRecording = requestBody?.voice;
 
 				if (!isValidUserId(recipientId)) {
 					return badRequest('A valid recipientId is required.');
@@ -97,7 +216,18 @@ app.http('messages', {
 					'The selected recipient is not a member of the required Entra group.'
 				);
 
-				if (!body || body.length > maximumBodyLength) {
+				let voiceMessageMetadata = null;
+				let finalBody = body;
+				if (voiceRecording) {
+					if (!isValidVoiceRecording(voiceRecording)) {
+						return badRequest(`Voice notes must be valid audio data under ${maximumVoiceDurationSeconds} seconds.`);
+					}
+
+					voiceMessageMetadata = await storeVoiceMessage(voiceRecording);
+					finalBody = body || 'Voice message';
+				}
+
+				if (!finalBody || finalBody.length > maximumBodyLength) {
 					return badRequest(`Message body must contain 1-${maximumBodyLength} characters.`);
 				}
 
@@ -109,8 +239,13 @@ app.http('messages', {
 					SenderName: authenticatedUser.name,
 					RecipientId: recipientId,
 					RecipientName: recipientName,
-					Body: body,
-					CreatedAt: createdAt
+					Body: finalBody,
+					CreatedAt: createdAt,
+					...(voiceMessageMetadata ? {
+						VoiceUrl: voiceMessageMetadata.voiceUrl,
+						VoiceMimeType: voiceMessageMetadata.voiceMimeType,
+						VoiceDurationSeconds: voiceMessageMetadata.voiceDurationSeconds
+					} : {})
 				};
 
 				await tableClient.createEntity(message);
@@ -168,6 +303,13 @@ app.http('messages', {
 						status: 200,
 						headers: { 'Content-Type': 'application/json' },
 						jsonBody: messageResponse(storedMessage, authenticatedUser.id)
+					};
+				}
+
+				if (storedMessage.VoiceUrl) {
+					return {
+						status: 400,
+						jsonBody: { error: 'Voice notes cannot be edited.' }
 					};
 				}
 
