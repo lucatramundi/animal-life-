@@ -369,11 +369,11 @@ function stopVoiceRecording(discard = false) {
 
   if (recorder && recorder.state !== "inactive") {
     const recordingStartedAt = voiceRecordingStartedAt;
-    const recordedBlob = new Blob(recordedVoiceChunks, { type: recorder.mimeType || "audio/webm" });
     recorder.onstop = () => {
-      if (voiceStream) {
-        voiceStream.getTracks().forEach((track) => track.stop());
-        voiceStream = null;
+      const recordedBlob = new Blob(recordedVoiceChunks, { type: recorder.mimeType || "audio/webm" });
+      if (activeVoiceStream) {
+        activeVoiceStream.getTracks().forEach((track) => track.stop());
+        activeVoiceStream = null;
       }
       isVoiceRecording = false;
       recordedVoiceChunks = [];
@@ -392,9 +392,9 @@ function stopVoiceRecording(discard = false) {
     return;
   }
 
-  if (voiceStream) {
-    voiceStream.getTracks().forEach((track) => track.stop());
-    voiceStream = null;
+  if (activeVoiceStream) {
+    activeVoiceStream.getTracks().forEach((track) => track.stop());
+    activeVoiceStream = null;
   }
 
   isVoiceRecording = false;
@@ -427,9 +427,9 @@ async function startVoiceRecording() {
     recorder.onstop = () => {
       const recordingStartedAt = voiceRecordingStartedAt;
       const recordedBlob = new Blob(recordedVoiceChunks, { type: recorder.mimeType || "audio/webm" });
-      if (voiceStream) {
-        voiceStream.getTracks().forEach((track) => track.stop());
-        voiceStream = null;
+      if (activeVoiceStream) {
+        activeVoiceStream.getTracks().forEach((track) => track.stop());
+        activeVoiceStream = null;
       }
       activeVoiceRecorder = null;
       isVoiceRecording = false;
@@ -447,7 +447,7 @@ async function startVoiceRecording() {
     };
 
     activeVoiceRecorder = recorder;
-    voiceStream = stream;
+  activeVoiceStream = stream;
     isVoiceRecording = true;
     voiceRecordingStartedAt = Date.now();
     recorder.start();
@@ -971,8 +971,15 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("chat-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const chatInput = document.getElementById("chat-input");
+    if (!selectedChatUser) return;
+
+    if (isVoiceRecording) {
+      stopVoiceRecording(false);
+      return;
+    }
+
     const message = chatInput.value.trim();
-    if (!selectedChatUser || !message) return;
+    if (!message) return;
 
     await sendChatMessage(message);
   });

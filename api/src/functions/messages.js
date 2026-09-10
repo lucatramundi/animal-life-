@@ -30,6 +30,9 @@ function getStorageAccountSettings() {
 	if (!connectionString) {
 		throw new Error('StorageConnection is not configured.');
 	}
+	if (connectionString === 'UseDevelopmentStorage=true') {
+		return null;
+	}
 
 	const settings = {};
 	for (const part of connectionString.split(';')) {
@@ -96,6 +99,9 @@ async function storeVoiceMessage(voiceRecording) {
 	const serviceClient = BlobServiceClient.fromConnectionString(process.env.StorageConnection);
 	const containerClient = serviceClient.getContainerClient('voice-messages');
 	await containerClient.createIfNotExists({ access: 'blob' });
+	if (!storageSettings) {
+		await containerClient.setAccessPolicy('blob');
+	}
 
 	const blobName = `voice-${Date.now()}-${randomUUID()}${getAudioExtension(mimeType)}`;
 	const blockBlobClient = containerClient.getBlockBlobClient(blobName);
@@ -105,16 +111,19 @@ async function storeVoiceMessage(voiceRecording) {
 		}
 	});
 
-	const sasToken = generateBlobSASQueryParameters({
-		containerName: containerClient.containerName,
-		blobName,
-		permissions: BlobSASPermissions.parse('r'),
-		startsOn: new Date(Date.now() - 60 * 1000),
-		expiresOn: new Date(Date.now() + 24 * 60 * 60 * 1000)
-	}, new StorageSharedKeyCredential(storageSettings.AccountName, storageSettings.AccountKey)).toString();
+
+	const voiceUrl = storageSettings
+		? `${blockBlobClient.url}?${generateBlobSASQueryParameters({
+			containerName: containerClient.containerName,
+			blobName,
+			permissions: BlobSASPermissions.parse('r'),
+			startsOn: new Date(Date.now() - 60 * 1000),
+			expiresOn: new Date(Date.now() + 24 * 60 * 60 * 1000)
+		}, new StorageSharedKeyCredential(storageSettings.AccountName, storageSettings.AccountKey)).toString()}`
+		: blockBlobClient.url;
 
 	return {
-		voiceUrl: `${blockBlobClient.url}?${sasToken}`,
+		voiceUrl,
 		voiceMimeType: mimeType,
 		voiceDurationSeconds: Number(voiceRecording.durationSeconds)
 	};
