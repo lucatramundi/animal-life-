@@ -98,10 +98,8 @@ async function storeVoiceMessage(voiceRecording) {
 	const storageSettings = getStorageAccountSettings();
 	const serviceClient = BlobServiceClient.fromConnectionString(process.env.StorageConnection);
 	const containerClient = serviceClient.getContainerClient('voice-messages');
-	await containerClient.createIfNotExists({ access: 'blob' });
-	if (!storageSettings) {
-		await containerClient.setAccessPolicy('blob');
-	}
+	// Real storage accounts disallow public access; SAS URLs are used instead. Azurite has no such restriction.
+	await containerClient.createIfNotExists(storageSettings ? undefined : { access: 'blob' });
 
 	const blobName = `voice-${Date.now()}-${randomUUID()}${getAudioExtension(mimeType)}`;
 	const blockBlobClient = containerClient.getBlockBlobClient(blobName);
