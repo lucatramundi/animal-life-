@@ -18,6 +18,7 @@ let chatPollTimer = null;
 let chatScrollResumeTimer = null;
 let chatRefreshPaused = false;
 let suppressChatScrollPause = false;
+let playingVoiceMessageCount = 0;
 let chatRequestId = 0;
 let onlineUsers = [];
 let recentConversations = [];
@@ -604,6 +605,9 @@ function renderChatMessage(message, currentUserId) {
     if (message.voiceMimeType) {
       audio.type = message.voiceMimeType;
     }
+    audio.addEventListener("play", handleVoiceMessagePlay);
+    audio.addEventListener("pause", handleVoiceMessageStop);
+    audio.addEventListener("ended", handleVoiceMessageStop);
     voiceMessage.append(caption, audio);
     bodyElement.append(voiceMessage);
   } else {
@@ -688,9 +692,22 @@ function handleChatScroll() {
   }
 
   chatScrollResumeTimer = setTimeout(() => {
-    chatRefreshPaused = false;
+    chatRefreshPaused = playingVoiceMessageCount > 0;
     chatScrollResumeTimer = null;
   }, 800);
+}
+
+// A poll refresh rebuilds message DOM nodes, which would cut off any voice note mid-playback.
+function handleVoiceMessagePlay() {
+  playingVoiceMessageCount += 1;
+  chatRefreshPaused = true;
+}
+
+function handleVoiceMessageStop() {
+  playingVoiceMessageCount = Math.max(0, playingVoiceMessageCount - 1);
+  if (playingVoiceMessageCount === 0 && !chatScrollResumeTimer) {
+    chatRefreshPaused = false;
+  }
 }
 
 function clearChat() {
@@ -704,6 +721,7 @@ function clearChat() {
     chatScrollResumeTimer = null;
   }
   stopVoiceRecording(true);
+  playingVoiceMessageCount = 0;
   chatRefreshPaused = false;
   selectedChatUser = null;
   currentConversationMessages = [];
